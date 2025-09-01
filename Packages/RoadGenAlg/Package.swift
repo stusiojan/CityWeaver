@@ -11,14 +11,23 @@ let package = Package(
             name: "RoadGenAlg",
             targets: ["RoadGenAlg"]),
     ],
+    dependencies: [
+        // Add the Swift Collections dependency here
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0")
+    ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "RoadGenAlg"),
+            name: "RoadGenAlg",
+            dependencies: [
+                // Add the specific products you want to use from Swift Collections
+                .product(name: "Collections", package: "swift-collections")
+            ]),
         .testTarget(
             name: "RoadGenAlgTests",
-            dependencies: ["RoadGenAlg"]
+            dependencies: ["RoadGenAlg",
+                           .product(name: "Collections", package: "swift-collections")]
         ),
     ]
 )

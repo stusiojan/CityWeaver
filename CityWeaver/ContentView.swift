@@ -5,10 +5,10 @@
 //  Created by Jan Stusio on 29/08/2025.
 //
 
-import SwiftUI
 import Core
-import Shared
 import RoadGenAlg
+import Shared
+import SwiftUI
 
 struct ContentView: View {
     var body: some View {
@@ -20,7 +20,7 @@ struct ContentView: View {
             Button("Tap me") {
                 print(Core.sayHello())
                 print(Shared.sayHello())
-                print(RoadGenAlg.sayHello())
+                RoadGenAlg.exampleUsage()
             }
         }
         .padding()
