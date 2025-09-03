@@ -1,26 +1,20 @@
-//
-//  ContentView.swift
-//  CityWeaver
-//
-//  Created by Jan Stusio on 29/08/2025.
-//
-
 import Core
-import RoadGenAlg
-import Shared
 import SwiftUI
 
 struct ContentView: View {
+    @State private var packageName: String = "Unknown"
+
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Text(packageName).padding()
             Button("Tap me") {
                 print(Core.sayHello())
-                print(Shared.sayHello())
-                RoadGenAlg.exampleUsage()
+            }
+            Button("Get package name") {
+                packageName = Core.getName()
             }
         }
         .padding()

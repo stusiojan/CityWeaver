@@ -1,29 +1,10 @@
+.env
 
-# Swift
+# Xcodeproj
+.build
+*.xcodeproj
 
-## User settings
-xcuserdata/
+# xcode-build-server
+buildServer.json
 
-## Obj-C/Swift specific
-*.hmap
-
-## App packaging
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-## Playgrounds
-timeline.xctimeline
-playground.xcworkspace
-
-# Swift Package Manager
-# Packages/
-# Package.pins
-# Package.resolved
-# *.xcodeproj
-# .swiftpm
-
-.build/
-
-# Python
 
