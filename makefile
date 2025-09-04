@@ -14,3 +14,10 @@ run:
 
 test-core:
 	cd Packages/Core/ && swift test
+
+lsp-bind:
+	xcode-build-server config -project CityWeaver.xcodeproj -scheme "CityWeaver Debug"
+
+generate-xcodeproj:
+	xcodegen
+	

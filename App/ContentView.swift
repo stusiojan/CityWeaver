@@ -1,4 +1,5 @@
 import Core
+import Shared
 import SwiftUI
 
 struct ContentView: View {
@@ -12,9 +13,12 @@ struct ContentView: View {
             Text(packageName).padding()
             Button("Tap me") {
                 print(Core.sayHello())
+                print(Shared.sayHello())
             }
             Button("Get package name") {
                 packageName = Core.getName()
+            }
+            Button("Generate roads") {
             }
         }
         .padding()

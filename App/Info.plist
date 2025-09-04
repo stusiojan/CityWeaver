@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.janstusio.cityweaver</string>
+	<string>com.janstusio.cityweaver.app</string>
 
 	<key>CFBundleExecutable</key>
 	<string>CityWeaverMac</string>
 
 	<key>LSMinimumSystemVersion</key>
-	<string>12.0</string>
+	<string>15.0</string>
 	
 	<key>CFBundleName</key>
 	<string>CityWeaver</string>

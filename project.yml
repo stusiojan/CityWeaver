@@ -17,6 +17,12 @@ packages:
   Core:
     path: ./Packages/Core
     group: "Packages"
+  Shared:
+    path: ./Packages/Shared
+    group: "Packages"
+  RGA:
+    path: ./Packages/RGA
+    group: "Packages"
 
 # Project-level settings
 settings:
@@ -36,6 +42,8 @@ targets:
           - "**/Thumbs.db"
     dependencies:
       - package: Core
+      - package: Shared
+      - package: RGA
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.janstusio.cityweaver.app
@@ -52,30 +60,6 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: -O
     scheme:
       gatherCoverageData: true
-      # testTargets:
-      #   - name: CityWeaverMacTests
-      #     parallelizable: true
-      #     randomExecutionOrder: true
-    # postCompileScripts:
-    #   # swiftlint
-    #   - script: mint run swiftlint swiftlint --config .swiftlint.yml
-    #     name: ⚠️ Swiftlint
-
-  # CityWeaverMacTests:
-  #   platform: macOS
-  #   type: bundle.unit-test
-  #   sources:
-  #     - path: App/Tests
-  #       excludes:
-  #         - "**/.DS_Store"
-  #   dependencies:
-  #     - target: CityWeaverMac
-  #     - package: Core
-    # postCompileScripts:
-    #   # swiftlint
-    #   - script: mint run swiftlint swiftlint --config .swiftlint.yml
-    #     name: Swiftlint
-
 
 # Custom schemes for different environments
 schemes:
@@ -83,17 +67,11 @@ schemes:
     build:
       targets:
         CityWeaverMac: all
-        # CityWeaverMacTests: [test]
     run:
       config: Debug
       environmentVariables:
         APP_ENV: DEBUG
         OS_ACTIVITY_MODE: disable
-    # test:
-    #   config: Debug
-    #   gatherCoverageData: true
-    #   targets:
-    #     - CityWeaverMacTests
 
   CityWeaver Release:
     build:
