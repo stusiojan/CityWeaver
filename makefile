@@ -15,6 +15,9 @@ run:
 test-core:
 	cd Packages/Core/ && swift test
 
+test-rga:
+	cd Packages/RGA/ && swift test
+
 lsp-bind:
 	xcode-build-server config -project CityWeaver.xcodeproj -scheme "CityWeaver Debug"
 

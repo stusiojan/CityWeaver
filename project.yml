@@ -89,6 +89,8 @@ fileGroups:
   - README.md
   - project.yml
   - .gitignore
+  - makefile
+  - doc/architecture.md
 
 # Setting groups for reusability
 settingGroups:

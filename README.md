@@ -1,5 +1,12 @@
 # CityWeaver
 
+## Project structure
+
+```txt
+App/
+project.yml         xcodegen project manifest
+```
+
 ## Setup
 
 `xcodegen` - generates or updates xcode proj
