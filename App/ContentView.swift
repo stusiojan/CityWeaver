@@ -1,43 +1,26 @@
 import Core
 import Shared
 import RGA
+import Terrain
 import SwiftUI
-//
-//struct ContentView: View {
-//    @State private var packageName: String = "Unknown"
-//
-//    var body: some View {
-//        VStack {
-//            Image(systemName: "globe")
-//                .imageScale(.large)
-//                .foregroundStyle(.tint)
-//            Text(packageName).padding()
-//            Button("Tap me") {
-//                print(Core.sayHello())
-//                print(Shared.sayHello())
-//            }
-//            Button("Get package name") {
-//                packageName = Core.getName()
-//            }
-//            Button("Generate roads") {
-//                let cityRoads: [RGA.RoadSegment] = RGA.exampleUsage()
-//
-//            }
-//        }
-//        .padding()
-//    }
-//}
-//
-//#Preview {
-//    ContentView()
-//}
 
-/// The main SwiftUI View that displays the button and the generated roads.
 struct ContentView: View {
     /// Holds the state of the currently generated roads.
     @State private var roads: [RGA.RoadSegment] = []
     
     var body: some View {
+        TabView {
+            Tab("Terrain", systemImage: "map") {
+                TerrainEditorView()
+            }
+            
+            Tab("Roads", systemImage: "road.lanes") {
+                roadGeneratorView
+            }
+        }
+    }
+    
+    private var roadGeneratorView: some View {
         VStack(spacing: 0) {
             // --- Control Panel ---
             HStack {
