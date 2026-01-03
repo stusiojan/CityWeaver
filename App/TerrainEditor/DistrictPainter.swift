@@ -73,24 +73,5 @@ final class DistrictPainter {
             queue.append((x, y + 1))
         }
     }
-    
-    /// Paint a rectangle area
-    func paintRectangle(
-        _ map: TerrainMap,
-        from: (x: Int, y: Int),
-        to: (x: Int, y: Int),
-        district: DistrictType?
-    ) {
-        let minX = min(from.x, to.x)
-        let maxX = max(from.x, to.x)
-        let minY = min(from.y, to.y)
-        let maxY = max(from.y, to.y)
-        
-        for y in minY...maxY {
-            for x in minX...maxX {
-                map.setDistrict(at: x, y: y, district: district)
-            }
-        }
-    }
 }
 

@@ -96,7 +96,7 @@ struct TerrainEditorView: View {
                         // Instructions
                         HStack {
                             Image(systemName: "info.circle")
-                            Text("Use selected tool to paint districts. Shortcuts: B=Brush, F=Fill, R=Rectangle, E=Eraser, ⌘Z=Undo, ⇧⌘Z=Redo")
+                            Text("Use selected tool to paint districts. Shortcuts: B=Brush, F=Fill, E=Eraser, ⌘Z=Undo, ⇧⌘Z=Redo")
                                 .font(.caption)
                             Spacer()
                         }
@@ -188,12 +188,39 @@ struct TerrainEditorView: View {
             let parser = ASCParser()
             let (header, heights) = try parser.load(from: url)
             
-            await MainActor.run {
-                loadingProgress = "Building terrain map..."
+            // Determine if we need downsampling
+            let totalCells = header.ncols * header.nrows
+            let needsDownsampling = totalCells > 1_000_000  // > 1M cells
+            
+            let downsampleFactor: Int
+            if totalCells > 4_000_000 {
+                downsampleFactor = 4  // Very large: 4x downsampling
+            } else if totalCells > 2_000_000 {
+                downsampleFactor = 3  // Large: 3x downsampling
+            } else if needsDownsampling {
+                downsampleFactor = 2  // Medium: 2x downsampling
+            } else {
+                downsampleFactor = 1  // Small: no downsampling
             }
             
-            let builder = TerrainMapBuilder()
-            let map = builder.buildTerrainMap(header: header, heights: heights)
+            await MainActor.run {
+                if downsampleFactor > 1 {
+                    loadingProgress = "Large map detected - downsampling \(downsampleFactor)x for performance..."
+                } else {
+                    loadingProgress = "Building terrain map..."
+                }
+            }
+            
+            let builder = OptimizedTerrainMapBuilder()
+            let map = await builder.buildDownsampledTerrainMap(
+                header: header,
+                heights: heights,
+                downsampleFactor: downsampleFactor
+            ) { progress, message in
+                Task { @MainActor in
+                    loadingProgress = message
+                }
+            }
             
             await MainActor.run {
                 terrainMap = map

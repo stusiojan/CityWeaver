@@ -124,10 +124,6 @@ struct TerrainKeyboardShortcuts: ViewModifier {
                 activeTool.wrappedValue = .fill
                 return .handled
             }
-            .onKeyPress("r") {
-                activeTool.wrappedValue = .rectangle
-                return .handled
-            }
             .onKeyPress("e") {
                 activeTool.wrappedValue = .eraser
                 return .handled
