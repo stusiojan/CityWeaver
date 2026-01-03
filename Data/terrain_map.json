@@ -1,0 +1,222 @@
+{
+  "header" : {
+    "cellsize" : 1,
+    "ncols" : 5,
+    "nodataValue" : -9999,
+    "nrows" : 5,
+    "xllcenter" : 513329,
+    "yllcenter" : 276352
+  },
+  "nodes" : [
+    [
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513329,
+        "y" : 276352,
+        "z" : 0
+      },
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513330,
+        "y" : 276352,
+        "z" : 0
+      },
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513331,
+        "y" : 276352,
+        "z" : 0
+      },
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513332,
+        "y" : 276352,
+        "z" : 0
+      },
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513333,
+        "y" : 276352,
+        "z" : 0
+      }
+    ],
+    [
+      {
+        "district" : "oldTown",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513329,
+        "y" : 276353,
+        "z" : 268.1
+      },
+      {
+        "district" : "oldTown",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513330,
+        "y" : 276353,
+        "z" : 268.08
+      },
+      {
+        "district" : "oldTown",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513331,
+        "y" : 276353,
+        "z" : 268.22
+      },
+      {
+        "district" : "oldTown",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513332,
+        "y" : 276353,
+        "z" : 268.26
+      },
+      {
+        "district" : "residential",
+        "slope" : 1,
+        "urbanizationFactor" : 0,
+        "x" : 513333,
+        "y" : 276353,
+        "z" : 268.3
+      }
+    ],
+    [
+      {
+        "district" : "oldTown",
+        "slope" : 0.06613819273619906,
+        "urbanizationFactor" : 0.8677236145276019,
+        "x" : 513329,
+        "y" : 276354,
+        "z" : 268.17
+      },
+      {
+        "district" : "business",
+        "slope" : 0.05408013557158137,
+        "urbanizationFactor" : 0.8918397288568373,
+        "x" : 513330,
+        "y" : 276354,
+        "z" : 268.13
+      },
+      {
+        "district" : "business",
+        "slope" : 0.03980757849373839,
+        "urbanizationFactor" : 0.9203848430125232,
+        "x" : 513331,
+        "y" : 276354,
+        "z" : 268.11
+      },
+      {
+        "district" : "business",
+        "slope" : 0.06749792435762542,
+        "urbanizationFactor" : 0.8650041512847492,
+        "x" : 513332,
+        "y" : 276354,
+        "z" : 268.19
+      },
+      {
+        "district" : "residential",
+        "slope" : 0.06443705865514796,
+        "urbanizationFactor" : 0.8711258826897041,
+        "x" : 513333,
+        "y" : 276354,
+        "z" : 268.21
+      }
+    ],
+    [
+      {
+        "district" : "business",
+        "slope" : 0.03375395225611848,
+        "urbanizationFactor" : 0.932492095487763,
+        "x" : 513329,
+        "y" : 276355,
+        "z" : 268.19
+      },
+      {
+        "district" : "business",
+        "slope" : 0.060433454694961884,
+        "urbanizationFactor" : 0.8791330906100763,
+        "x" : 513330,
+        "y" : 276355,
+        "z" : 268.22
+      },
+      {
+        "district" : "business",
+        "slope" : 0.07473381005381079,
+        "urbanizationFactor" : 0.8505323798923784,
+        "x" : 513331,
+        "y" : 276355,
+        "z" : 268.19
+      },
+      {
+        "district" : "business",
+        "slope" : 0.06142814498656586,
+        "urbanizationFactor" : 0.8771437100268683,
+        "x" : 513332,
+        "y" : 276355,
+        "z" : 268.17
+      },
+      {
+        "district" : "residential",
+        "slope" : 0.05139660114986899,
+        "urbanizationFactor" : 0.897206797700262,
+        "x" : 513333,
+        "y" : 276355,
+        "z" : 268.2
+      }
+    ],
+    [
+      {
+        "district" : "industrial",
+        "slope" : 0.013504238348623195,
+        "urbanizationFactor" : 0.9729915233027536,
+        "x" : 513329,
+        "y" : 276356,
+        "z" : 268.21
+      },
+      {
+        "district" : "industrial",
+        "slope" : 0.03276477430719329,
+        "urbanizationFactor" : 0.9344704513856135,
+        "x" : 513330,
+        "y" : 276356,
+        "z" : 268.22
+      },
+      {
+        "district" : "industrial",
+        "slope" : 0.03871213567505966,
+        "urbanizationFactor" : 0.9225757286498807,
+        "x" : 513331,
+        "y" : 276356,
+        "z" : 268.27
+      },
+      {
+        "district" : "industrial",
+        "slope" : 0.05365794683563457,
+        "urbanizationFactor" : 0.8926841063287309,
+        "x" : 513332,
+        "y" : 276356,
+        "z" : 268.25
+      },
+      {
+        "district" : "industrial",
+        "slope" : 0.06055868993441811,
+        "urbanizationFactor" : 0.8788826201311638,
+        "x" : 513333,
+        "y" : 276356,
+        "z" : 268.29
+      }
+    ]
+  ]
+}

@@ -23,6 +23,9 @@ packages:
   RGA:
     path: ./Packages/RGA
     group: "Packages"
+  Terrain:
+    path: ./Packages/Terrain
+    group: "Packages"
 
 # Project-level settings
 settings:
@@ -44,6 +47,7 @@ targets:
       - package: Core
       - package: Shared
       - package: RGA
+      - package: Terrain
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.janstusio.cityweaver.app
