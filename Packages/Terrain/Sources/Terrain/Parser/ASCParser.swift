@@ -44,11 +44,35 @@ public struct ASCParser: Sendable {
             throw ASCParserError.invalidFileFormat
         }
         
-        // Parse header (first 6 lines)
-        let header = try parseHeader(Array(lines.prefix(6)))
+        // Find where header ends and data begins
+        var headerLines: [String] = []
+        var dataStartIndex = 0
+        
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces).lowercased()
+            
+            // Check if this looks like a header line
+            if trimmed.starts(with: "ncols") || 
+               trimmed.starts(with: "nrows") ||
+               trimmed.starts(with: "xllcenter") || 
+               trimmed.starts(with: "xllcorner") ||
+               trimmed.starts(with: "yllcenter") || 
+               trimmed.starts(with: "yllcorner") ||
+               trimmed.starts(with: "cellsize") || 
+               trimmed.starts(with: "nodata_value") {
+                headerLines.append(line)
+            } else if !trimmed.isEmpty && headerLines.count >= 6 {
+                // This looks like the start of data
+                dataStartIndex = index
+                break
+            }
+        }
+        
+        // Parse header
+        let header = try parseHeader(headerLines)
         
         // Parse grid data (remaining lines)
-        let gridLines = Array(lines.dropFirst(6)).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let gridLines = Array(lines.dropFirst(dataStartIndex)).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let heights = try parseGrid(gridLines, header: header)
         
         return (header, heights)
@@ -63,7 +87,10 @@ public struct ASCParser: Sendable {
         var cellsize: Double?
         var nodataValue: Double?
         
-        for line in lines {
+        // Parse only non-empty lines
+        let nonEmptyLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        
+        for line in nonEmptyLines {
             let components = line.trimmingCharacters(in: .whitespaces)
                 .components(separatedBy: .whitespaces)
                 .filter { !$0.isEmpty }
@@ -90,6 +117,9 @@ public struct ASCParser: Sendable {
                 break
             }
         }
+        
+        // Debug: print what we got
+        print("DEBUG: ncols=\(ncols?.description ?? "nil"), nrows=\(nrows?.description ?? "nil"), xll=\(xll?.description ?? "nil"), yll=\(yll?.description ?? "nil"), cellsize=\(cellsize?.description ?? "nil"), nodataValue=\(nodataValue?.description ?? "nil")")
         
         guard let ncols, let nrows, let xll, let yll, 
               let cellsize, let nodataValue else {
