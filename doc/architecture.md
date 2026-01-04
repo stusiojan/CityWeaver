@@ -4,6 +4,12 @@
 
 This document describes the architecture of a procedural city road generation system that uses a priority queue-based algorithm with a flexible, rule-based constraint and goal system. The system is designed to integrate with a city growth simulation that dynamically updates road generation rules based on terrain, population, and urban development factors.
 
+The system consists of few main modules:
+1. **Terrain Module** (Implemented) - Handles loading, processing, and managing terrain data from ASC files
+2. **Road Generation Module** (POC implemented as RGA package) - Generates road networks based on terrain and city state
+3. **Export Module** (To be implemented) - Exporting city maps to json or other formats
+4. **UI** (Partially implemented) - Enables user friendly input entering and displaying generated city
+
 ---
 
 ## System Architecture
@@ -15,7 +21,7 @@ This document describes the architecture of a procedural city road generation sy
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ├─► CityState (population, density, age)
-                     ├─► TerrainMap (1x1m node grid)
+                     ├─► TerrainMap (1x1m node grid with height data)
                      └─► Configuration Updates
                      
                      ▼
@@ -64,7 +70,341 @@ This document describes the architecture of a procedural city road generation sy
 
 ---
 
-## Core Components
+## Terrain Module
+
+The Terrain module is a standalone Swift package (`Packages/Terrain/`) that handles all terrain data loading, processing, and management. It provides the foundation for road generation by supplying terrain information with calculated properties like slope and urbanization factor.
+
+### Module Structure
+
+```
+Packages/Terrain/
+├── Package.swift
+├── Sources/Terrain/
+│   ├── Models/
+│   │   ├── ASCHeader.swift           # ASC file header metadata
+│   │   ├── TerrainNode.swift         # Single terrain grid point
+│   │   ├── TerrainMap.swift          # Complete terrain data structure
+│   │   └── DistrictType.swift        # District classification enum
+│   ├── Parser/
+│   │   └── ASCParser.swift           # ASC file format parser
+│   ├── Calculator/
+│   │   └── TerrainCalculator.swift   # Slope and urbanization calculations
+│   ├── Builder/
+│   │   ├── TerrainMapBuilder.swift           # Synchronous builder for small maps
+│   │   └── OptimizedTerrainMapBuilder.swift  # Async builder with downsampling
+│   ├── Validation/
+│   │   └── DistrictValidator.swift   # District boundary validation
+│   └── Serialization/
+│       └── TerrainMapSerializer.swift # JSON import/export
+└── Tests/TerrainTests/
+    ├── ASCParserTests.swift
+    ├── TerrainCalculatorTests.swift
+    ├── TerrainMapBuilderTests.swift
+    └── DistrictValidatorTests.swift
+```
+
+### Data Flow
+
+```
+ASC File (.asc)
+    │
+    ▼
+ASCParser.load(from:)
+    │
+    ├─► ASCHeader (metadata)
+    └─► [[Double]] (height grid)
+    │
+    ▼
+TerrainMapBuilder.buildTerrainMap()
+    │
+    ├─► TerrainCalculator.calculateSlope() for each node
+    ├─► TerrainCalculator.calculateUrbanizationFactor() for each node
+    │
+    ▼
+TerrainMap (ready for road generation)
+    │
+    ├─► Used by RoadGenerator
+    ├─► User paints districts via TerrainEditor UI
+    │
+    ▼
+TerrainMapSerializer.export()
+    │
+    ▼
+JSON file (with districts)
+```
+
+### Key Components
+
+#### 1. ASC File Format Support
+
+The module supports standard ESRI ASCII Grid format (.asc):
+
+```
+ncols         2229
+nrows         2323
+xllcenter     513329.00
+yllcenter     276352.00
+cellsize      1.00
+nodata_value  -9999
+<grid data follows...>
+```
+
+**ASCParser** handles:
+- Flexible header parsing (auto-detects header lines)
+- Both `xllcenter/yllcenter` and `xllcorner/yllcorner`
+- NODATA value replacement (converts to 0.0)
+- Error handling with descriptive messages
+
+```swift
+public struct ASCParser {
+    public func load(from url: URL) throws -> (ASCHeader, [[Double]])
+}
+```
+
+#### 2. Terrain Calculations
+
+**TerrainCalculator** derives properties from elevation data:
+
+```swift
+public struct TerrainCalculator {
+    func calculateSlope(at x: Int, y: Int, heights: [[Double]], cellsize: Double) -> Double
+    func calculateUrbanizationFactor(from slope: Double) -> Double
+}
+```
+
+**Slope Calculation:**
+- Uses Horn's method (3x3 kernel convolution)
+- Returns slope as rise/run ratio (0-1+ range)
+- Formula: `sqrt(dz_dx² + dz_dy²) / cellsize`
+
+**Urbanization Factor:**
+- Converts slope to buildability score (0-1)
+- Formula: `max(0, 1 - (slope / 0.5))`
+- Interpretation:
+  - 1.0: Flat terrain, fully buildable
+  - 0.5: Moderate slope
+  - 0.0: Slope ≥ 0.5 (50% grade), unbuildable
+
+#### 3. TerrainMap Data Structure
+
+**Core Models:**
+
+```swift
+// ASC file metadata
+public struct ASCHeader: Codable, Sendable {
+    let ncols: Int
+    let nrows: Int
+    let xllcenter: Double
+    let yllcenter: Double
+    let cellsize: Double
+    let nodataValue: Double
+}
+
+// Single terrain grid point
+public struct TerrainNode: Codable, Sendable {
+    struct Coordinates: Codable, Sendable {
+        let x: Double  // World X coordinate
+        let y: Double  // World Y coordinate
+        let z: Double  // Elevation
+    }
+    
+    let coordinates: Coordinates
+    let slope: Double                    // 0-1+
+    let urbanizationFactor: Double       // 0-1
+    var district: DistrictType?          // Optional district assignment
+}
+
+// Complete terrain map
+@MainActor
+public final class TerrainMap: Codable, Sendable {
+    public let header: ASCHeader
+    private var nodes: [[TerrainNode]]
+    
+    public var dimensions: (rows: Int, cols: Int) { ... }
+    public func getNode(at x: Int, y: Int) -> TerrainNode?
+    public func setDistrict(at x: Int, y: Int, district: DistrictType?)
+}
+
+// District types
+public enum DistrictType: String, Codable, CaseIterable, Sendable {
+    case business
+    case oldTown
+    case residential
+    case industrial
+    case park
+}
+```
+
+#### 4. Performance Optimizations
+
+**Two Builder Implementations:**
+
+**TerrainMapBuilder** (Synchronous):
+- For maps < 1M nodes
+- Blocking operation
+- Simple API
+
+**OptimizedTerrainMapBuilder** (Actor):
+- For large maps (> 1M nodes)
+- Background processing with progress callbacks
+- Automatic downsampling strategy:
+  - `> 4M nodes`: 4x downsampling (~5M → ~300K nodes)
+  - `> 2M nodes`: 3x downsampling
+  - `> 1M nodes`: 2x downsampling
+  - `< 1M nodes`: No downsampling
+- Task yielding every 50 rows for UI responsiveness
+
+```swift
+public actor OptimizedTerrainMapBuilder {
+    public func buildDownsampledTerrainMap(
+        header: ASCHeader,
+        heights: [[Double]],
+        downsampleFactor: Int,
+        progress: @Sendable @escaping (Double, String) -> Void
+    ) async -> TerrainMap
+}
+```
+
+**Memory & Performance:**
+- Original: 2000×2000 map = 4M nodes × ~100 bytes = ~400MB RAM
+- Downsampled 4x: 500×500 = 250K nodes × ~100 bytes = ~25MB RAM
+- 16x reduction in memory usage and rendering cost
+
+#### 5. District Management
+
+**DistrictValidator** ensures district integrity:
+
+```swift
+public struct DistrictValidator {
+    public struct ValidationResult {
+        public let isValid: Bool
+        public let errors: [ValidationError]
+    }
+    
+    public enum ValidationError {
+        case districtNotConnected(district: DistrictType, fragmentCount: Int)
+    }
+    
+    public func validate(_ map: TerrainMap) -> ValidationResult
+}
+```
+
+**Validation Rules:**
+- Districts must be contiguous (uses flood-fill algorithm)
+- No overlapping districts (enforced by data structure)
+- Reports number of disconnected fragments
+
+#### 6. Persistence
+
+**TerrainMapSerializer** for saving/loading:
+
+```swift
+public struct TerrainMapSerializer {
+    public func export(_ map: TerrainMap) throws -> Data       // To JSON
+    public func `import`(from data: Data) throws -> TerrainMap // From JSON
+}
+```
+
+Preserves:
+- Header metadata (geographic coordinates, cell size)
+- All terrain nodes with calculated properties
+- District assignments from user painting
+
+### Terrain Editor UI
+
+Interactive application for terrain preparation (`App/TerrainEditor/`):
+
+**Features:**
+1. **File Loading:**
+   - `.fileImporter` for selecting ASC files
+   - Automatic downsampling for large files
+   - Progress indicator during loading
+
+2. **Visualization:**
+   - Height-based heatmap (blue=low → green=mid → red=high)
+   - Interactive Canvas with viewport rendering
+   - Grid lines when zoomed in (scale > 2.0x)
+
+3. **District Painting Tools:**
+   - **Brush:** Adjustable size (1-20 cells)
+   - **Fill:** Flood-fill for large areas
+   - **Eraser:** Remove district assignments
+   - District overlay with semi-transparent colors
+
+4. **Navigation:**
+   - Pinch-to-zoom (trackpad, 2 fingers)
+   - Scroll wheel zoom (mouse)
+   - Pan by dragging (when not painting)
+   - Zoom range: 0.1x to 10x
+
+5. **Editing Features:**
+   - Undo/Redo system (keyboard shortcuts ⌘Z / ⇧⌘Z)
+   - Tool shortcuts (B=Brush, F=Fill, E=Eraser)
+   - Real-time validation feedback
+
+6. **Export/Import:**
+   - Save terrain maps with districts to JSON
+   - Load previously saved maps
+   - Validate before export
+
+**Performance Optimizations:**
+- Viewport rendering (only draw visible cells)
+- Level of Detail based on zoom
+- Debounced updates during painting
+- Efficient gesture handling
+
+### Integration with Road Generation
+
+The Terrain module provides `TerrainMap` to the Road Generator:
+
+```swift
+// Road generation will receive:
+let terrainMap: TerrainMap
+
+// Access terrain data:
+if let node = terrainMap.getNode(at: x, y: y) {
+    let slope = node.slope
+    let buildable = node.urbanizationFactor
+    let district = node.district
+    let elevation = node.coordinates.z
+    
+    // Use in constraint rules:
+    // - TerrainConstraintRule checks slope and urbanizationFactor
+    // - DistrictPatternRule uses district type
+    // - Elevation affects road connections
+}
+```
+
+**Key Usage Patterns:**
+
+1. **Constraint Evaluation:**
+   ```swift
+   let node = terrainMap.getNode(at: proposedLocation)
+   if node.urbanizationFactor < config.minUrbanizationFactor {
+       return .failed  // Too steep to build
+   }
+   ```
+
+2. **District-Based Generation:**
+   ```swift
+   if node.district == .business {
+       // Generate grid pattern
+   } else if node.district == .oldTown {
+       // Generate organic layout
+   }
+   ```
+
+3. **Elevation-Aware Routing:**
+   ```swift
+   let elevationDiff = abs(startNode.coordinates.z - endNode.coordinates.z)
+   if elevationDiff > config.maxElevationChange {
+       // Add switchbacks or reject route
+   }
+   ```
+
+---
+
+## Core Components (Road Generation - To Be Implemented)
 
 ### 1. Data Structures
 
@@ -470,52 +810,213 @@ These can be optimized later if needed without changing the architecture.
 ## Code Organization
 
 ```
-RoadGeneration/
-├── Core/
-│   ├── DataStructures.swift      (TerrainNode, CityState, RoadAttributes, etc.)
-│   ├── RoadGenerator.swift       (Main algorithm)
-│   └── PriorityQueue.swift       (Heap wrapper if needed)
+CityWeaver/
 │
-├── Rules/
-│   ├── Protocols.swift           (LocalConstraintRule, GlobalGoalRule)
-│   ├── RuleConfiguration.swift  (Single source of truth)
-│   │
-│   ├── LocalConstraints/
-│   │   ├── BoundaryConstraintRule.swift
-│   │   ├── AngleConstraintRule.swift
-│   │   ├── TerrainConstraintRule.swift
-│   │   ├── ProximityConstraintRule.swift
-│   │   └── DistrictBoundaryRule.swift
-│   │
-│   └── GlobalGoals/
-│       ├── DistrictPatternRule.swift
-│       ├── CoastalGrowthRule.swift
-│       └── ConnectivityRule.swift
+├── Packages/Terrain/                    ✅ IMPLEMENTED
+│   ├── Package.swift
+│   ├── Sources/Terrain/
+│   │   ├── Models/
+│   │   │   ├── ASCHeader.swift
+│   │   │   ├── TerrainNode.swift
+│   │   │   ├── TerrainMap.swift
+│   │   │   └── DistrictType.swift
+│   │   ├── Parser/
+│   │   │   └── ASCParser.swift
+│   │   ├── Calculator/
+│   │   │   └── TerrainCalculator.swift
+│   │   ├── Builder/
+│   │   │   ├── TerrainMapBuilder.swift
+│   │   │   └── OptimizedTerrainMapBuilder.swift
+│   │   ├── Validation/
+│   │   │   └── DistrictValidator.swift
+│   │   └── Serialization/
+│   │       └── TerrainMapSerializer.swift
+│   └── Tests/TerrainTests/
+│       ├── ASCParserTests.swift
+│       ├── TerrainCalculatorTests.swift
+│       ├── TerrainMapBuilderTests.swift
+│       └── DistrictValidatorTests.swift
 │
-├── Generators/
-│   ├── LocalConstraintGenerator.swift
-│   └── GlobalGoalGenerator.swift
+├── App/                                 ✅ IMPLEMENTED (UI)
+│   ├── CWApp.swift
+│   ├── ContentView.swift
+│   └── TerrainEditor/
+│       ├── TerrainEditorView.swift
+│       ├── TerrainCanvasView.swift
+│       ├── DistrictPaletteView.swift
+│       ├── DistrictPainter.swift
+│       ├── PaintTool.swift
+│       ├── TerrainUndoManager.swift
+│       └── OptimizedTerrainCanvasView.swift
 │
-├── Evaluators/
-│   ├── LocalConstraintEvaluator.swift
-│   └── GlobalGoalEvaluator.swift
-│
-└── Examples/
-    └── Usage.swift
+└── Packages/RoadGeneration/             ⏳ TO BE IMPLEMENTED
+    ├── Package.swift
+    ├── Sources/RoadGeneration/
+    │   ├── Core/
+    │   │   ├── DataStructures.swift      (CityState, RoadAttributes, etc.)
+    │   │   ├── RoadGenerator.swift       (Main algorithm)
+    │   │   └── PriorityQueue.swift       (Heap wrapper if needed)
+    │   │
+    │   ├── Rules/
+    │   │   ├── Protocols.swift           (LocalConstraintRule, GlobalGoalRule)
+    │   │   ├── RuleConfiguration.swift   (Single source of truth)
+    │   │   │
+    │   │   ├── LocalConstraints/
+    │   │   │   ├── BoundaryConstraintRule.swift
+    │   │   │   ├── AngleConstraintRule.swift
+    │   │   │   ├── TerrainConstraintRule.swift
+    │   │   │   ├── ProximityConstraintRule.swift
+    │   │   │   └── DistrictBoundaryRule.swift
+    │   │   │
+    │   │   └── GlobalGoals/
+    │   │       ├── DistrictPatternRule.swift
+    │   │       ├── CoastalGrowthRule.swift
+    │   │       └── ConnectivityRule.swift
+    │   │
+    │   ├── Generators/
+    │   │   ├── LocalConstraintGenerator.swift
+    │   │   └── GlobalGoalGenerator.swift
+    │   │
+    │   └── Evaluators/
+    │       ├── LocalConstraintEvaluator.swift
+    │       └── GlobalGoalEvaluator.swift
+    │
+    └── Tests/RoadGenerationTests/
+        └── (to be implemented)
 ```
 
 ---
 
 ## Summary
 
+### Current Implementation Status
+
+**✅ Terrain Module (Complete):**
+- ASC file loading and parsing
+- Terrain property calculations (slope, urbanization factor)
+- TerrainMap data structure with district support
+- District validation
+- JSON serialization/deserialization
+- Performance optimizations for large maps (downsampling, async processing)
+- Full test coverage
+- Interactive UI for terrain editing
+
+**⏳ Road Generation Module (To Be Implemented):**
+- Priority queue-based algorithm
+- Rule-based constraint and goal system
+- Rule generators and evaluators
+- City state integration
+- Road network output
+
+### Architecture Benefits
+
 This architecture provides:
 
-1. ✅ **Modularity:** Clear separation between road generation, rule generation, and rule evaluation
+1. ✅ **Modularity:** Clear separation between terrain management and road generation
 2. ✅ **Flexibility:** Easy to add new rules without modifying core algorithm
 3. ✅ **Configurability:** Single source of truth for all parameters
 4. ✅ **Simulation Integration:** Clean interface for city simulation to update rules
 5. ✅ **Extensibility:** Well-defined extension points for future complexity
 6. ✅ **Maintainability:** Responsibilities divided into logical components
 7. ✅ **Simplicity:** Straightforward implementation without premature optimization
+8. ✅ **Testability:** Standalone modules with comprehensive test coverage
+9. ✅ **Performance:** Optimized for large datasets with async processing and downsampling
 
-The system successfully balances the need for a simple initial implementation with the ability to evolve into a complex, realistic city generation system.
+### Getting Started with Terrain Module
+
+The Terrain module is already integrated and ready to use:
+
+```swift
+import Terrain
+
+// Load ASC file
+let parser = ASCParser()
+let (header, heights) = try parser.load(from: ascFileURL)
+
+// Build terrain map (for large files, use OptimizedTerrainMapBuilder)
+let builder = TerrainMapBuilder()
+let terrainMap = builder.buildTerrainMap(header: header, heights: heights)
+
+// Access terrain data
+if let node = terrainMap.getNode(at: x, y: y) {
+    print("Elevation: \(node.coordinates.z)")
+    print("Slope: \(node.slope)")
+    print("Urbanization: \(node.urbanizationFactor)")
+    print("District: \(node.district?.rawValue ?? "none")")
+}
+
+// Set district (for user input or simulation)
+terrainMap.setDistrict(at: x, y: y, district: .residential)
+
+// Validate districts
+let validator = DistrictValidator()
+let result = validator.validate(terrainMap)
+if !result.isValid {
+    for error in result.errors {
+        print("Validation error: \(error)")
+    }
+}
+
+// Save/load with districts
+let serializer = TerrainMapSerializer()
+let jsonData = try serializer.export(terrainMap)
+let loadedMap = try serializer.import(from: jsonData)
+```
+
+### Next Steps for Road Generation Implementation
+
+1. **Create RoadGeneration Package:**
+   - Set up package structure: `Packages/RoadGeneration/`
+   - Add `import Terrain` dependency in Package.swift
+   - Define core data structures (CityState, RoadAttributes, QueryAttributes, RoadSegment)
+
+2. **Implement Priority Queue:**
+   - Heap-based priority queue for RoadQuery
+   - Efficient O(log n) insertion and extraction
+   - Comparable conformance for RoadQuery based on time
+
+3. **Define Rule Protocols:**
+   - `LocalConstraintRule` protocol with evaluate method
+   - `GlobalGoalRule` protocol with generateProposals method
+   - `RuleScope` enum: .citywide, .district(DistrictType), .segmentSpecific
+
+4. **Implement Configuration System:**
+   - `RuleConfiguration` struct with all parameters
+   - Centralized configuration management
+   - Default values based on realistic city planning
+
+5. **Create Initial Rules:**
+   - `BoundaryConstraintRule` - keep roads within bounds
+   - `TerrainConstraintRule` - use `terrainMap.getNode()` to check slope/urbanization
+   - `DistrictPatternRule` - generate based on `node.district`
+
+6. **Build Core Algorithm:**
+   - `RoadGenerator` class with priority queue processing
+   - Integration with Terrain module (pass `TerrainMap` to generator)
+   - Rule evaluation pipeline (constraints → goals → new queries)
+
+7. **Integration Pattern:**
+   ```swift
+   let generator = RoadGenerator(
+       terrainMap: terrainMap,  // From Terrain module
+       cityState: cityState,
+       config: config
+   )
+   let roads = generator.generateRoadNetwork(
+       initialRoad: seedRoad,
+       initialQuery: seedQuery
+   )
+   ```
+
+8. **Add Tests:**
+   - Unit tests for each rule
+   - Integration tests with real TerrainMap data
+   - Performance benchmarks on large maps
+
+### Available Sample Data
+
+- `Data/test.asc` - Small 10×10 test file
+- `Data/80052_1526701_M-34-51-C-d-4-1.asc` - Real terrain data 2229×2323
+- `Data/terrain_map.json` - Example exported terrain with districts
+
+The system successfully balances the need for a simple initial implementation with the ability to evolve into a complex, realistic city generation system. The Terrain module provides a solid foundation for road generation with all necessary terrain data and district information.
