@@ -9,3 +9,4 @@ buildServer.json
 
 # Data
 *.asc
+Data/*.json
