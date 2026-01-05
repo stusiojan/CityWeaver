@@ -20,8 +20,8 @@ packages:
   Shared:
     path: ./Packages/Shared
     group: "Packages"
-  RGA:
-    path: ./Packages/RGA
+  RoadGeneration:
+    path: ./Packages/RoadGeneration
     group: "Packages"
   Terrain:
     path: ./Packages/Terrain
@@ -46,7 +46,7 @@ targets:
     dependencies:
       - package: Core
       - package: Shared
-      - package: RGA
+      - package: RoadGeneration
       - package: Terrain
     settings:
       base:

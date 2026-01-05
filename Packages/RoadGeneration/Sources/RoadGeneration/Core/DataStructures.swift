@@ -1,6 +1,6 @@
 import Collections
-import Foundation
 import CoreGraphics
+import Foundation
 import Terrain
 
 // MARK: - Core Data Structures
@@ -19,7 +19,7 @@ extension Terrain.DistrictType {
     var rgaPattern: Terrain.DistrictType {
         return self
     }
-    
+
     /// Check if this is a coastal-like district
     var isCoastal: Bool {
         // In future, this could be determined by proximity to water
@@ -39,7 +39,7 @@ struct ConstraintResult {
     let state: ConstraintState
     let adjustedQuery: QueryAttributes
     let reason: String?
-    
+
     init(state: ConstraintState, adjustedQuery: QueryAttributes, reason: String? = nil) {
         self.state = state
         self.adjustedQuery = adjustedQuery
@@ -65,14 +65,14 @@ public struct RoadAttributes: Codable, Sendable {
     public let length: Double
     /// Type of road (highway, residential, etc.)
     public let roadType: String
-    
+
     public init(startPoint: CGPoint, angle: Double, length: Double, roadType: String) {
         self.startPoint = startPoint
         self.angle = angle
         self.length = length
         self.roadType = roadType
     }
-    
+
     /// Additional properties that could be added:
     /// - width: Double
     /// - surfaceType: RoadSurfaceType
@@ -81,49 +81,32 @@ public struct RoadAttributes: Codable, Sendable {
     /// - lanes: Int
 }
 
-// CGPoint Codable conformance
-extension CGPoint: @retroactive Codable {
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let x = try container.decode(Double.self, forKey: .x)
-        let y = try container.decode(Double.self, forKey: .y)
-        self.init(x: x, y: y)
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(Double(x), forKey: .x)
-        try container.encode(Double(y), forKey: .y)
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case x, y
-    }
-}
-
 /// Data associated with a road building request
 /// Similar to RoadAttributes but represents a proposal rather than final geometry
 /// Additional validation data or metadata could be added here
-struct QueryAttributes {
+public struct QueryAttributes {
     /// Starting point of the proposed road
-    let startPoint: CGPoint
+    public let startPoint: CGPoint
     /// Direction angle in radians
-    let angle: Double
+    public let angle: Double
     /// Proposed length of the road segment
-    let length: Double
+    public let length: Double
     /// Type of road being proposed
-    let roadType: String
+    public let roadType: String
     /// Whether this is a main road in the district
-    let isMainRoad: Bool
-    
+    public let isMainRoad: Bool
+
     /// Additional properties that could be added:
     /// - priority: Int
     /// - requesterType: RoadRequesterType
     /// - buildCost: Double
     /// - environmentalImpact: Double
     /// - populationDensityRequirement: Double
-    
-    init(startPoint: CGPoint, angle: Double, length: Double, roadType: String, isMainRoad: Bool = false) {
+
+    public init(
+        startPoint: CGPoint, angle: Double, length: Double, roadType: String,
+        isMainRoad: Bool = false
+    ) {
         self.startPoint = startPoint
         self.angle = angle
         self.length = length
@@ -141,16 +124,16 @@ struct RoadQuery: Comparable {
     let roadAttributes: RoadAttributes
     /// Query data for validation
     let queryAttributes: QueryAttributes
-    
+
     /// Additional properties that could be added:
     /// - sourceSegmentId: UUID?
     /// - generationReason: String
     /// - estimatedBuildTime: TimeInterval
-    
+
     static func < (lhs: RoadQuery, rhs: RoadQuery) -> Bool {
         return lhs.time < rhs.time
     }
-    
+
     static func == (lhs: RoadQuery, rhs: RoadQuery) -> Bool {
         return lhs.time == rhs.time
     }
@@ -165,13 +148,13 @@ public struct RoadSegment: Codable, Sendable {
     public let attributes: RoadAttributes
     /// Timestamp when segment was created
     public let createdAt: Int
-    
+
     /// Additional properties that could be added:
     /// - trafficFlow: Double
     /// - maintenanceSchedule: [Date]
     /// - connectedSegments: Set<UUID>
     /// - buildCost: Double
-    
+
     public init(attributes: RoadAttributes, createdAt: Int) {
         self.id = UUID()
         self.attributes = attributes
@@ -186,29 +169,36 @@ public struct RoadSegment: Codable, Sendable {
 
 /// Current state of the city simulation
 /// Additional city-wide metrics could be added here
-struct CityState {
+public struct CityState {
     /// Total population
-    var population: Int
+    public var population: Int
     /// Population per square kilometer
-    var density: Double
+    public var density: Double
     /// Economic development level (0-1)
-    var economicLevel: Double
+    public var economicLevel: Double
     /// City age in simulation years
-    var age: Int
-    
+    public var age: Int
+
     /// Additional properties that could be added:
     /// - gdp: Double
     /// - trafficCongestion: Double
     /// - pollutionLevel: Double
     /// - housingDemand: Double
     /// - employmentRate: Double
-    
+
     /// Flag indicating if rules need regeneration
-    var needsRuleRegeneration: Bool = true
-    
+    public var needsRuleRegeneration: Bool = true
+
     /// Marks that rules should be regenerated on next iteration
-    mutating func markDirty() {
+    public mutating func markDirty() {
         needsRuleRegeneration = true
+    }
+
+    public init(population: Int, density: Double, economicLevel: Double, age: Int) {
+        self.population = population
+        self.density = density
+        self.economicLevel = economicLevel
+        self.age = age
     }
 }
 
@@ -225,7 +215,7 @@ struct GenerationContext {
     let existingInfrastructure: [RoadSegment]
     /// The query being evaluated
     let queryAttributes: QueryAttributes
-    
+
     /// Additional properties that could be added:
     /// - timeOfDay: TimeInterval
     /// - season: Season
@@ -237,57 +227,60 @@ struct GenerationContext {
 
 /// Central configuration for all rule parameters - single source of truth
 /// All rule-related parameters should be defined here
-struct RuleConfiguration {
+public struct RuleConfiguration {
     // Boundary constraints
-    var cityBounds: CGRect = CGRect(origin: CGPoint(x: 0, y: 0), size: CGSize(width: 1000, height: 1000))
-//    var cityBounds: CGRect = CGRect(x: 0, y: 0, width: 1000, height: 1000)
-    
+    public var cityBounds: CGRect = CGRect(
+        origin: CGPoint(x: 0, y: 0), size: CGSize(width: 1000, height: 1000))
+    //    var cityBounds: CGRect = CGRect(x: 0, y: 0, width: 1000, height: 1000)
+
     // Angle constraints (in radians)
-    var mainRoadAngleMin: Double = 60 * .pi / 180
-    var mainRoadAngleMax: Double = 170 * .pi / 180
-    var internalRoadAngleMin: Double = 30 * .pi / 180
-    var internalRoadAngleMax: Double = 180 * .pi / 180
-    
+    public var mainRoadAngleMin: Double = 60 * .pi / 180
+    public var mainRoadAngleMax: Double = 170 * .pi / 180
+    public var internalRoadAngleMin: Double = 30 * .pi / 180
+    public var internalRoadAngleMax: Double = 180 * .pi / 180
+
     // Distance constraints
-    var minimumRoadDistance: Double = 10.0
-    var intersectionMinSpacing: Double = 50.0
-    
+    public var minimumRoadDistance: Double = 10.0
+    public var intersectionMinSpacing: Double = 50.0
+
     // Terrain constraints
-    var maxBuildableSlope: Double = 0.3
-    var minUrbanizationFactor: Double = 0.2
-    
+    public var maxBuildableSlope: Double = 0.3
+    public var minUrbanizationFactor: Double = 0.2
+
     // Global goal parameters
-    var branchingProbability: [Terrain.DistrictType: Double] = [
+    public var branchingProbability: [Terrain.DistrictType: Double] = [
         .business: 0.7,
         .oldTown: 0.9,
         .residential: 0.6,
         .industrial: 0.5,
-        .park: 0.3
+        .park: 0.3,
     ]
-    
-    var roadLengthMultiplier: [Terrain.DistrictType: Double] = [
+
+    public var roadLengthMultiplier: [Terrain.DistrictType: Double] = [
         .business: 1.0,
         .oldTown: 0.6,
         .residential: 0.8,
         .industrial: 1.2,
-        .park: 0.5
+        .park: 0.5,
     ]
-    
-    var branchingAngles: [Terrain.DistrictType: [Double]] = [
-        .business: [0, .pi/2, -.pi/2],  // Grid pattern
-        .oldTown: [0, .pi/6, -.pi/6, .pi/4, -.pi/4],  // Organic
-        .residential: [0, .pi/3, -.pi/3],
-        .industrial: [0, .pi/2, -.pi/2],
-        .park: [0, .pi/4, -.pi/4]
+
+    public var branchingAngles: [Terrain.DistrictType: [Double]] = [
+        .business: [0, .pi / 2, -.pi / 2],  // Grid pattern
+        .oldTown: [0, .pi / 6, -.pi / 6, .pi / 4, -.pi / 4],  // Organic
+        .residential: [0, .pi / 3, -.pi / 3],
+        .industrial: [0, .pi / 2, -.pi / 2],
+        .park: [0, .pi / 4, -.pi / 4],
     ]
-    
+
     // Coastal development
-    var coastalGrowthBias: Double = 0.8
-    
+    public var coastalGrowthBias: Double = 0.8
+
     // Delays
-    var defaultDelay: Int = 1
-    var branchDelay: Int = 3
-    
+    public var defaultDelay: Int = 1
+    public var branchDelay: Int = 3
+
+    public init() {}
+
     /// Additional parameters that could be added:
     /// - zoneDensityFactors: [DistrictType: Double]
     /// - roadWidths: [String: Double]
@@ -298,6 +291,7 @@ struct RuleConfiguration {
 // MARK: - Rule Protocols
 
 /// Protocol for local constraint rules that validate road proposals
+@MainActor
 protocol LocalConstraintRule {
     /// Priority for rule evaluation (lower = higher priority)
     var priority: Int { get }
@@ -305,15 +299,16 @@ protocol LocalConstraintRule {
     var applicabilityScope: RuleScope { get }
     /// Configuration reference
     var config: RuleConfiguration { get set }
-    
+
     /// Check if rule applies to given context
     func applies(to context: GenerationContext) -> Bool
-    
+
     /// Evaluate the constraint
     func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
 }
 
 /// Protocol for global goal rules that generate new road proposals
+@MainActor
 protocol GlobalGoalRule {
     /// Priority for rule evaluation (lower = higher priority)
     var priority: Int { get }
@@ -321,12 +316,13 @@ protocol GlobalGoalRule {
     var applicabilityScope: RuleScope { get }
     /// Configuration reference
     var config: RuleConfiguration { get set }
-    
+
     /// Check if rule applies to given context
     func applies(to context: GenerationContext) -> Bool
-    
+
     /// Generate new road proposals
-    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext) -> [RoadProposal]
+    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
+        -> [RoadProposal]
 }
 
 // MARK: - Local Constraint Rules Implementation
@@ -336,21 +332,23 @@ struct BoundaryConstraintRule: LocalConstraintRule {
     var priority: Int = 10
     var applicabilityScope: RuleScope = .citywide
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return true  // Always applies
     }
-    
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult {
+
+    @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
+    {
         let endPoint = CGPoint(
             x: qa.startPoint.x + cos(qa.angle) * qa.length,
             y: qa.startPoint.y + sin(qa.angle) * qa.length
         )
-        
+
         if !config.cityBounds.contains(qa.startPoint) || !config.cityBounds.contains(endPoint) {
-            return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Outside city bounds")
+            return ConstraintResult(
+                state: .failed, adjustedQuery: qa, reason: "Outside city bounds")
         }
-        
+
         return ConstraintResult(state: .succeed, adjustedQuery: qa)
     }
 }
@@ -360,32 +358,34 @@ struct AngleConstraintRule: LocalConstraintRule {
     var priority: Int = 20
     var applicabilityScope: RuleScope = .segmentSpecific
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return !context.existingInfrastructure.isEmpty
     }
-    
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult {
+
+    @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
+    {
         let minAngle = qa.isMainRoad ? config.mainRoadAngleMin : config.internalRoadAngleMin
         let maxAngle = qa.isMainRoad ? config.mainRoadAngleMax : config.internalRoadAngleMax
-        
+
         // Check angles with nearby existing roads
         for segment in context.existingInfrastructure {
             let distance = sqrt(
-                pow(segment.attributes.startPoint.x - qa.startPoint.x, 2) +
-                pow(segment.attributes.startPoint.y - qa.startPoint.y, 2)
+                pow(segment.attributes.startPoint.x - qa.startPoint.x, 2)
+                    + pow(segment.attributes.startPoint.y - qa.startPoint.y, 2)
             )
-            
+
             if distance < config.intersectionMinSpacing {
                 let angleDiff = abs(qa.angle - segment.attributes.angle)
                 let normalizedAngle = min(angleDiff, 2 * .pi - angleDiff)
-                
+
                 if normalizedAngle < minAngle || normalizedAngle > maxAngle {
-                    return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Invalid intersection angle")
+                    return ConstraintResult(
+                        state: .failed, adjustedQuery: qa, reason: "Invalid intersection angle")
                 }
             }
         }
-        
+
         return ConstraintResult(state: .succeed, adjustedQuery: qa)
     }
 }
@@ -395,25 +395,27 @@ struct TerrainConstraintRule: LocalConstraintRule {
     var priority: Int = 15
     var applicabilityScope: RuleScope = .citywide
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return true
     }
-    
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult {
+
+    @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
+    {
         let worldCoords = (x: Double(qa.startPoint.x), y: Double(qa.startPoint.y))
         guard let node = context.terrainMap.getNode(at: worldCoords) else {
             return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "No terrain data")
         }
-        
+
         if node.slope > config.maxBuildableSlope {
             return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Slope too steep")
         }
-        
+
         if node.urbanizationFactor < config.minUrbanizationFactor {
-            return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Low urbanization factor")
+            return ConstraintResult(
+                state: .failed, adjustedQuery: qa, reason: "Low urbanization factor")
         }
-        
+
         return ConstraintResult(state: .succeed, adjustedQuery: qa)
     }
 }
@@ -423,33 +425,36 @@ struct ProximityConstraintRule: LocalConstraintRule {
     var priority: Int = 25
     var applicabilityScope: RuleScope = .citywide
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return !context.existingInfrastructure.isEmpty
     }
-    
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult {
+
+    @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
+    {
         let proposedEnd = CGPoint(
             x: qa.startPoint.x + cos(qa.angle) * qa.length,
             y: qa.startPoint.y + sin(qa.angle) * qa.length
         )
-        
+
         for segment in context.existingInfrastructure {
             let existingEnd = CGPoint(
-                x: segment.attributes.startPoint.x + cos(segment.attributes.angle) * segment.attributes.length,
-                y: segment.attributes.startPoint.y + sin(segment.attributes.angle) * segment.attributes.length
+                x: segment.attributes.startPoint.x + cos(segment.attributes.angle)
+                    * segment.attributes.length,
+                y: segment.attributes.startPoint.y + sin(segment.attributes.angle)
+                    * segment.attributes.length
             )
-            
+
             let distance = sqrt(
-                pow(proposedEnd.x - existingEnd.x, 2) +
-                pow(proposedEnd.y - existingEnd.y, 2)
+                pow(proposedEnd.x - existingEnd.x, 2) + pow(proposedEnd.y - existingEnd.y, 2)
             )
-            
+
             if distance < config.minimumRoadDistance {
-                return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Too close to existing road")
+                return ConstraintResult(
+                    state: .failed, adjustedQuery: qa, reason: "Too close to existing road")
             }
         }
-        
+
         return ConstraintResult(state: .succeed, adjustedQuery: qa)
     }
 }
@@ -459,32 +464,34 @@ struct DistrictBoundaryRule: LocalConstraintRule {
     var priority: Int = 30
     var applicabilityScope: RuleScope = .segmentSpecific
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return true
     }
-    
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult {
+
+    @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
+    {
         let startWorldCoords = (x: Double(qa.startPoint.x), y: Double(qa.startPoint.y))
         guard let startNode = context.terrainMap.getNode(at: startWorldCoords) else {
             return ConstraintResult(state: .succeed, adjustedQuery: qa)
         }
-        
+
         let endPoint = CGPoint(
             x: qa.startPoint.x + cos(qa.angle) * qa.length,
             y: qa.startPoint.y + sin(qa.angle) * qa.length
         )
-        
+
         let endWorldCoords = (x: Double(endPoint.x), y: Double(endPoint.y))
         guard let endNode = context.terrainMap.getNode(at: endWorldCoords) else {
             return ConstraintResult(state: .succeed, adjustedQuery: qa)
         }
-        
+
         // Hard transition - roads cannot cross district boundaries (except main roads)
         if startNode.district != endNode.district && !qa.isMainRoad {
-            return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "Cannot cross district boundary")
+            return ConstraintResult(
+                state: .failed, adjustedQuery: qa, reason: "Cannot cross district boundary")
         }
-        
+
         return ConstraintResult(state: .succeed, adjustedQuery: qa)
     }
 }
@@ -496,44 +503,46 @@ struct DistrictPatternRule: GlobalGoalRule {
     var priority: Int = 10
     var applicabilityScope: RuleScope = .segmentSpecific
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return true
     }
-    
-    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext) -> [RoadProposal] {
+
+    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
+        -> [RoadProposal]
+    {
         let worldCoords = (x: Double(ra.startPoint.x), y: Double(ra.startPoint.y))
         guard let node = context.terrainMap.getNode(at: worldCoords) else {
             return []
         }
-        
-        let district = node.district ?? .residential // Default to residential if no district set
+
+        let district = node.district ?? .residential  // Default to residential if no district set
         let probability = config.branchingProbability[district] ?? 0.5
         let lengthMultiplier = config.roadLengthMultiplier[district] ?? 0.8
-        let angles = config.branchingAngles[district] ?? [0, .pi/4, -.pi/4]
-        
+        let angles = config.branchingAngles[district] ?? [0, .pi / 4, -.pi / 4]
+
         var proposals: [RoadProposal] = []
-        
+
         let endPoint = CGPoint(
             x: ra.startPoint.x + cos(ra.angle) * ra.length,
             y: ra.startPoint.y + sin(ra.angle) * ra.length
         )
-        
+
         for (index, angleOffset) in angles.enumerated() {
             if Double.random(in: 0...1) > probability {
                 continue
             }
-            
+
             let newAngle = ra.angle + angleOffset
             let newLength = ra.length * lengthMultiplier
-            
+
             let newRoadAttributes = RoadAttributes(
                 startPoint: endPoint,
                 angle: newAngle,
                 length: newLength,
                 roadType: ra.roadType
             )
-            
+
             let newQueryAttributes = QueryAttributes(
                 startPoint: endPoint,
                 angle: newAngle,
@@ -541,16 +550,17 @@ struct DistrictPatternRule: GlobalGoalRule {
                 roadType: ra.roadType,
                 isMainRoad: qa.isMainRoad
             )
-            
+
             let delay = index == 0 ? config.defaultDelay : config.branchDelay
-            
-            proposals.append(RoadProposal(
-                roadAttributes: newRoadAttributes,
-                queryAttributes: newQueryAttributes,
-                delay: delay
-            ))
+
+            proposals.append(
+                RoadProposal(
+                    roadAttributes: newRoadAttributes,
+                    queryAttributes: newQueryAttributes,
+                    delay: delay
+                ))
         }
-        
+
         return proposals
     }
 }
@@ -560,33 +570,37 @@ struct CoastalGrowthRule: GlobalGoalRule {
     var priority: Int = 5
     var applicabilityScope: RuleScope = .citywide
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         // Check if we're near coastal area (using extension property)
-        let worldCoords = (x: Double(context.currentLocation.x), y: Double(context.currentLocation.y))
+        let worldCoords = (
+            x: Double(context.currentLocation.x), y: Double(context.currentLocation.y)
+        )
         guard let node = context.terrainMap.getNode(at: worldCoords) else {
             return false
         }
         return node.district?.isCoastal ?? false
     }
-    
-    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext) -> [RoadProposal] {
+
+    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
+        -> [RoadProposal]
+    {
         // Bias growth to follow coastline (simplified - would need actual coastline data)
         var proposals: [RoadProposal] = []
-        
+
         let endPoint = CGPoint(
             x: ra.startPoint.x + cos(ra.angle) * ra.length,
             y: ra.startPoint.y + sin(ra.angle) * ra.length
         )
-        
+
         // Generate road that continues along coast
         let newRoadAttributes = RoadAttributes(
             startPoint: endPoint,
-            angle: ra.angle, // Keep same direction along coast
+            angle: ra.angle,  // Keep same direction along coast
             length: ra.length * 0.9,
             roadType: ra.roadType
         )
-        
+
         let newQueryAttributes = QueryAttributes(
             startPoint: endPoint,
             angle: ra.angle,
@@ -594,13 +608,14 @@ struct CoastalGrowthRule: GlobalGoalRule {
             roadType: ra.roadType,
             isMainRoad: qa.isMainRoad
         )
-        
-        proposals.append(RoadProposal(
-            roadAttributes: newRoadAttributes,
-            queryAttributes: newQueryAttributes,
-            delay: config.defaultDelay
-        ))
-        
+
+        proposals.append(
+            RoadProposal(
+                roadAttributes: newRoadAttributes,
+                queryAttributes: newQueryAttributes,
+                delay: config.defaultDelay
+            ))
+
         return proposals
     }
 }
@@ -610,20 +625,22 @@ struct ConnectivityRule: GlobalGoalRule {
     var priority: Int = 8
     var applicabilityScope: RuleScope = .citywide
     var config: RuleConfiguration
-    
+
     func applies(to context: GenerationContext) -> Bool {
         return context.queryAttributes.isMainRoad
     }
-    
-    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext) -> [RoadProposal] {
+
+    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
+        -> [RoadProposal]
+    {
         // Simplified - would need actual district center calculations
         var proposals: [RoadProposal] = []
-        
+
         let endPoint = CGPoint(
             x: ra.startPoint.x + cos(ra.angle) * ra.length,
             y: ra.startPoint.y + sin(ra.angle) * ra.length
         )
-        
+
         // Main roads continue straight and branch less frequently
         let newRoadAttributes = RoadAttributes(
             startPoint: endPoint,
@@ -631,7 +648,7 @@ struct ConnectivityRule: GlobalGoalRule {
             length: ra.length,
             roadType: ra.roadType
         )
-        
+
         let newQueryAttributes = QueryAttributes(
             startPoint: endPoint,
             angle: ra.angle,
@@ -639,13 +656,14 @@ struct ConnectivityRule: GlobalGoalRule {
             roadType: ra.roadType,
             isMainRoad: true
         )
-        
-        proposals.append(RoadProposal(
-            roadAttributes: newRoadAttributes,
-            queryAttributes: newQueryAttributes,
-            delay: config.defaultDelay
-        ))
-        
+
+        proposals.append(
+            RoadProposal(
+                roadAttributes: newRoadAttributes,
+                queryAttributes: newQueryAttributes,
+                delay: config.defaultDelay
+            ))
+
         return proposals
     }
 }
@@ -653,6 +671,7 @@ struct ConnectivityRule: GlobalGoalRule {
 // MARK: - Rule Generators
 
 /// Generates local constraint rules from city state and terrain
+@MainActor
 class LocalConstraintGenerator {
     /// Generates rules based on current city state
     /// - Parameters:
@@ -660,32 +679,35 @@ class LocalConstraintGenerator {
     ///   - terrainMap: Terrain data
     ///   - config: Rule configuration
     /// - Returns: Array of local constraint rules
-    func generateRules(from cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration) -> [LocalConstraintRule] {
+    func generateRules(
+        from cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration
+    ) -> [LocalConstraintRule] {
         var rules: [LocalConstraintRule] = []
-        
+
         // Always include boundary constraint
         rules.append(BoundaryConstraintRule(config: config))
-        
+
         // Add terrain constraint
         rules.append(TerrainConstraintRule(config: config))
-        
+
         // Add proximity constraint
         rules.append(ProximityConstraintRule(config: config))
-        
+
         // Add angle constraint for mature cities
         if cityState.age > 0 {
             rules.append(AngleConstraintRule(config: config))
         }
-        
+
         // Add district boundary rule
         rules.append(DistrictBoundaryRule(config: config))
-        
+
         // Sort by priority
         return rules.sorted { $0.priority < $1.priority }
     }
 }
 
 /// Generates global goal rules from city state and terrain
+@MainActor
 class GlobalGoalGenerator {
     /// Generates rules based on current city state
     /// - Parameters:
@@ -693,20 +715,22 @@ class GlobalGoalGenerator {
     ///   - terrainMap: Terrain data
     ///   - config: Rule configuration
     /// - Returns: Array of global goal rules
-    func generateRules(from cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration) -> [GlobalGoalRule] {
+    func generateRules(
+        from cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration
+    ) -> [GlobalGoalRule] {
         var rules: [GlobalGoalRule] = []
-        
+
         // Always include district pattern rule
         rules.append(DistrictPatternRule(config: config))
-        
+
         // Add coastal growth if city is near water
         rules.append(CoastalGrowthRule(config: config))
-        
+
         // Add connectivity rule for established cities
         if cityState.age > 5 {
             rules.append(ConnectivityRule(config: config))
         }
-        
+
         // Sort by priority
         return rules.sorted { $0.priority < $1.priority }
     }
@@ -715,62 +739,68 @@ class GlobalGoalGenerator {
 // MARK: - Rule Evaluators
 
 /// Evaluates local constraints using rule collection
+@MainActor
 class LocalConstraintEvaluator {
     private var rules: [LocalConstraintRule]
-    
+
     init(rules: [LocalConstraintRule]) {
         self.rules = rules
     }
-    
+
     /// Updates the rule set
     func updateRules(_ newRules: [LocalConstraintRule]) {
         self.rules = newRules.sorted { $0.priority < $1.priority }
     }
-    
+
     /// Evaluates all applicable rules
-    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> (QueryAttributes, ConstraintState) {
+    func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> (
+        QueryAttributes, ConstraintState
+    ) {
         var currentQuery = qa
-        
+
         for rule in rules {
             if rule.applies(to: context) {
                 let result = rule.evaluate(currentQuery, context: context)
-                
+
                 if result.state == .failed {
                     return (result.adjustedQuery, .failed)
                 }
-                
+
                 currentQuery = result.adjustedQuery
             }
         }
-        
+
         return (currentQuery, .succeed)
     }
 }
 
 /// Evaluates global goals using rule collection
+@MainActor
 class GlobalGoalEvaluator {
     private var rules: [GlobalGoalRule]
-    
+
     init(rules: [GlobalGoalRule]) {
         self.rules = rules
     }
-    
+
     /// Updates the rule set
     func updateRules(_ newRules: [GlobalGoalRule]) {
         self.rules = newRules.sorted { $0.priority < $1.priority }
     }
-    
+
     /// Generates proposals from all applicable rules
-    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext) -> [RoadProposal] {
+    func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
+        -> [RoadProposal]
+    {
         var allProposals: [RoadProposal] = []
-        
+
         for rule in rules {
             if rule.applies(to: context) {
                 let proposals = rule.generateProposals(qa, ra, context: context)
                 allProposals.append(contentsOf: proposals)
             }
         }
-        
+
         return allProposals
     }
 }
@@ -778,50 +808,53 @@ class GlobalGoalEvaluator {
 // MARK: - Main Road Generator
 
 /// Main road generation algorithm implementation with rule-based system
-class RoadGenerator {
+@MainActor
+public final class RoadGenerator {
     /// Priority queue of road proposals to be processed
     private var queue: Heap<RoadQuery>
     /// List of successfully placed road segments
     private var segments: [RoadSegment]
-    
+
     /// Current city state
     private var cityState: CityState
     /// Terrain data
     private var terrainMap: Terrain.TerrainMap
     /// Rule configuration
     private var config: RuleConfiguration
-    
+
     /// Rule generators
     private let constraintGenerator: LocalConstraintGenerator
     private let goalGenerator: GlobalGoalGenerator
-    
+
     /// Rule evaluators
     private var constraintEvaluator: LocalConstraintEvaluator
     private var goalEvaluator: GlobalGoalEvaluator
-    
-    init(cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration) {
+
+    public init(cityState: CityState, terrainMap: Terrain.TerrainMap, config: RuleConfiguration) {
         self.queue = Heap<RoadQuery>()
         self.segments = []
         self.cityState = cityState
         self.terrainMap = terrainMap
         self.config = config
-        
+
         self.constraintGenerator = LocalConstraintGenerator()
         self.goalGenerator = GlobalGoalGenerator()
-        
+
         // Generate initial rules
-        let constraintRules = constraintGenerator.generateRules(from: cityState, terrainMap: terrainMap, config: config)
-        let goalRules = goalGenerator.generateRules(from: cityState, terrainMap: terrainMap, config: config)
-        
+        let constraintRules = constraintGenerator.generateRules(
+            from: cityState, terrainMap: terrainMap, config: config)
+        let goalRules = goalGenerator.generateRules(
+            from: cityState, terrainMap: terrainMap, config: config)
+
         self.constraintEvaluator = LocalConstraintEvaluator(rules: constraintRules)
         self.goalEvaluator = GlobalGoalEvaluator(rules: goalRules)
     }
-    
+
     /// Updates city state and regenerates rules if needed
     /// - Parameter newCityState: Updated city state from simulation
-    func updateCityState(_ newCityState: CityState) {
+    public func updateCityState(_ newCityState: CityState) {
         self.cityState = newCityState
-        
+
         if newCityState.needsRuleRegeneration {
             regenerateRules()
             var mutableState = newCityState
@@ -829,36 +862,40 @@ class RoadGenerator {
             self.cityState = mutableState
         }
     }
-    
+
     /// Updates terrain map
     /// - Parameter newTerrainMap: Updated terrain data
-    func updateTerrainMap(_ newTerrainMap: Terrain.TerrainMap) {
+    public func updateTerrainMap(_ newTerrainMap: Terrain.TerrainMap) {
         self.terrainMap = newTerrainMap
         regenerateRules()
     }
-    
+
     /// Updates rule configuration
     /// - Parameter newConfig: Updated configuration
-    func updateConfiguration(_ newConfig: RuleConfiguration) {
+    public func updateConfiguration(_ newConfig: RuleConfiguration) {
         self.config = newConfig
         regenerateRules()
     }
-    
+
     /// Regenerates all rules based on current state
     private func regenerateRules() {
-        let constraintRules = constraintGenerator.generateRules(from: cityState, terrainMap: terrainMap, config: config)
-        let goalRules = goalGenerator.generateRules(from: cityState, terrainMap: terrainMap, config: config)
-        
+        let constraintRules = constraintGenerator.generateRules(
+            from: cityState, terrainMap: terrainMap, config: config)
+        let goalRules = goalGenerator.generateRules(
+            from: cityState, terrainMap: terrainMap, config: config)
+
         constraintEvaluator.updateRules(constraintRules)
         goalEvaluator.updateRules(goalRules)
     }
-    
+
     /// Main algorithm entry point - generates road network from initial seed
     /// - Parameters:
     ///   - initialRoad: Starting road attributes for the generation process
     ///   - initialQuery: Starting query attributes for validation
     /// - Returns: Array of generated road segments forming the final network
-    func generateRoadNetwork(initialRoad: RoadAttributes, initialQuery: QueryAttributes) -> [RoadSegment] {
+    public func generateRoadNetwork(initialRoad: RoadAttributes, initialQuery: QueryAttributes)
+        -> [RoadSegment]
+    {
         // Initialize priority queue with single entry
         let initialRoadQuery = RoadQuery(
             time: 0,
@@ -866,11 +903,11 @@ class RoadGenerator {
             queryAttributes: initialQuery
         )
         queue.insert(initialRoadQuery)
-        
+
         // Process queue until empty
         while !queue.isEmpty {
             let currentQuery = queue.removeMin()
-            
+
             // Create context for evaluation
             let context = GenerationContext(
                 currentLocation: currentQuery.queryAttributes.startPoint,
@@ -879,10 +916,11 @@ class RoadGenerator {
                 existingInfrastructure: segments,
                 queryAttributes: currentQuery.queryAttributes
             )
-            
+
             // Validate the proposed road segment
-            let (adjustedQuery, state) = constraintEvaluator.evaluate(currentQuery.queryAttributes, context: context)
-            
+            let (adjustedQuery, state) = constraintEvaluator.evaluate(
+                currentQuery.queryAttributes, context: context)
+
             if state == .succeed {
                 // Create and add successful segment
                 let newSegment = RoadSegment(
@@ -890,14 +928,14 @@ class RoadGenerator {
                     createdAt: currentQuery.time
                 )
                 segments.append(newSegment)
-                
+
                 // Generate new road proposals based on global goals
                 let proposals = goalEvaluator.generateProposals(
                     adjustedQuery,
                     currentQuery.roadAttributes,
                     context: context
                 )
-                
+
                 // Add proposals to queue
                 for proposal in proposals {
                     let newQuery = RoadQuery(
@@ -910,24 +948,24 @@ class RoadGenerator {
             }
             // If state == .failed, simply discard the proposal
         }
-        
+
         return segments
     }
-    
+
     /// Gets the current list of generated segments
     /// - Returns: Array of all successfully placed road segments
-    func getSegments() -> [RoadSegment] {
+    public func getSegments() -> [RoadSegment] {
         return segments
     }
-    
+
     /// Gets the current size of the processing queue
     /// - Returns: Number of pending road proposals
-    func getQueueSize() -> Int {
+    public func getQueueSize() -> Int {
         return queue.count
     }
-    
+
     /// Clears all generated segments and queue for fresh generation
-    func reset() {
+    public func reset() {
         segments.removeAll()
         queue = Heap<RoadQuery>()
     }
@@ -947,7 +985,7 @@ public func exampleUsage() -> [RoadSegment] {
         cellsize: 1,
         nodataValue: -9999
     )
-    
+
     // Create nodes grid
     var nodes: [[Terrain.TerrainNode]] = []
     for y in 0..<1000 {
@@ -967,9 +1005,9 @@ public func exampleUsage() -> [RoadSegment] {
         }
         nodes.append(row)
     }
-    
+
     let terrainMap = Terrain.TerrainMap(header: header, nodes: nodes)
-    
+
     // Setup initial city state
     var cityState = CityState(
         population: 10000,
@@ -977,17 +1015,17 @@ public func exampleUsage() -> [RoadSegment] {
         economicLevel: 0.6,
         age: 0
     )
-    
+
     // Setup rule configuration
     var config = RuleConfiguration()
-    
+
     // Create generator
     let generator = RoadGenerator(
         cityState: cityState,
         terrainMap: terrainMap,
         config: config
     )
-    
+
     // Create initial road segment (town center)
     let initialRoad = RoadAttributes(
         startPoint: CGPoint(x: 500, y: 500),
@@ -995,7 +1033,7 @@ public func exampleUsage() -> [RoadSegment] {
         length: 100,
         roadType: "main"
     )
-    
+
     let initialQuery = QueryAttributes(
         startPoint: CGPoint(x: 500, y: 500),
         angle: 0,
@@ -1003,31 +1041,31 @@ public func exampleUsage() -> [RoadSegment] {
         roadType: "main",
         isMainRoad: true
     )
-    
+
     // Generate the initial road network
     print("Generating initial city...")
     let roadNetwork = generator.generateRoadNetwork(
         initialRoad: initialRoad,
         initialQuery: initialQuery
     )
-    
+
     print("Generated \(roadNetwork.count) road segments")
-    
+
     // Simulate city growth iteration
     cityState.population = 15000
     cityState.density = 2000
     cityState.age = 1
     cityState.markDirty()
-    
+
     // Update generator with new city state
     generator.updateCityState(cityState)
-    
+
     // Generate next iteration (would start with new initial roads at city edge)
     print("\nSimulating city growth iteration...")
-    
+
     // Print some statistics
     print("Final road count: \(generator.getSegments().count)")
     print("Queue size: \(generator.getQueueSize())")
-    
+
     return generator.getSegments()
 }

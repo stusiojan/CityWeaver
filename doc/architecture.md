@@ -5,10 +5,10 @@
 This document describes the architecture of a procedural city road generation system that uses a priority queue-based algorithm with a flexible, rule-based constraint and goal system. The system is designed to integrate with a city growth simulation that dynamically updates road generation rules based on terrain, population, and urban development factors.
 
 The system consists of few main modules:
-1. **Terrain Module** (Implemented) - Handles loading, processing, and managing terrain data from ASC files
-2. **Road Generation Module** (POC implemented as RGA package) - Generates road networks based on terrain and city state
-3. **Export Module** (To be implemented) - Exporting city maps to json or other formats
-4. **UI** (Partially implemented) - Enables user friendly input entering and displaying generated city
+1. **Terrain Module** (✅ Implemented) - Handles loading, processing, and managing terrain data from ASC files
+2. **Road Generation Module** (✅ Implemented as RoadGeneration package) - Generates road networks based on terrain and city state
+3. **Export Module** (✅ Implemented) - Exporting road networks to JSON, OBJ, and glTF formats
+4. **UI** (✅ Implemented) - Comprehensive user interface for terrain editing, configuration, and road generation with 3D visualization
 
 ---
 
@@ -404,7 +404,7 @@ if let node = terrainMap.getNode(at: x, y: y) {
 
 ---
 
-## Core Components (Road Generation - To Be Implemented)
+## Core Components (Road Generation - ✅ Implemented)
 
 ### 1. Data Structures
 
@@ -812,7 +812,12 @@ These can be optimized later if needed without changing the architecture.
 ```
 CityWeaver/
 │
-├── Packages/Terrain/                    ✅ IMPLEMENTED
+├── Data/
+│   ├── 80052_1526701_M-34-51-C-d-4-1.asc  (Real terrain data 2229×2323)
+│   ├── test.asc                              (Small test file)
+│   └── terrain_map.json                       (Example exported terrain with districts)
+│
+├── Packages/Terrain/
 │   ├── Package.swift
 │   ├── Sources/Terrain/
 │   │   ├── Models/
@@ -837,61 +842,55 @@ CityWeaver/
 │       ├── TerrainMapBuilderTests.swift
 │       └── DistrictValidatorTests.swift
 │
-├── App/                                 ✅ IMPLEMENTED (UI)
+├── App/
 │   ├── CWApp.swift
 │   ├── ContentView.swift
-│   └── TerrainEditor/
-│       ├── TerrainEditorView.swift
-│       ├── TerrainCanvasView.swift
-│       ├── DistrictPaletteView.swift
-│       ├── DistrictPainter.swift
-│       ├── PaintTool.swift
-│       ├── TerrainUndoManager.swift
-│       └── OptimizedTerrainCanvasView.swift
+│   ├── TerrainEditor/
+│   │   ├── TerrainEditorView.swift
+│   │   ├── TerrainCanvasView.swift
+│   │   ├── DistrictPaletteView.swift
+│   │   ├── DistrictPainter.swift
+│   │   ├── PaintTool.swift
+│   │   ├── TerrainUndoManager.swift
+│   │   └── OptimizedTerrainCanvasView.swift
+│   ├── Configuration/
+│   │   ├── CityStateConfigView.swift
+│   │   └── RuleConfigView.swift
+│   ├── RoadGeneration/
+│   │   └── RoadGeneratorView.swift
+│   └── Visualization/
+│       ├── RoadNetwork3DView.swift
+│       ├── SceneBuilder.swift
+│       └── (2D visualization integrated in views)
 │
-└── Packages/RoadGeneration/             ⏳ TO BE IMPLEMENTED
+└── Packages/RoadGeneration/
     ├── Package.swift
     ├── Sources/RoadGeneration/
     │   ├── Core/
-    │   │   ├── DataStructures.swift      (CityState, RoadAttributes, etc.)
-    │   │   ├── RoadGenerator.swift       (Main algorithm)
-    │   │   └── PriorityQueue.swift       (Heap wrapper if needed)
+    │   │   └── DataStructures.swift      (All rules, generators, evaluators, RoadGenerator)
     │   │
-    │   ├── Rules/
-    │   │   ├── Protocols.swift           (LocalConstraintRule, GlobalGoalRule)
-    │   │   ├── RuleConfiguration.swift   (Single source of truth)
-    │   │   │
-    │   │   ├── LocalConstraints/
-    │   │   │   ├── BoundaryConstraintRule.swift
-    │   │   │   ├── AngleConstraintRule.swift
-    │   │   │   ├── TerrainConstraintRule.swift
-    │   │   │   ├── ProximityConstraintRule.swift
-    │   │   │   └── DistrictBoundaryRule.swift
-    │   │   │
-    │   │   └── GlobalGoals/
-    │   │       ├── DistrictPatternRule.swift
-    │   │       ├── CoastalGrowthRule.swift
-    │   │       └── ConnectivityRule.swift
+    │   ├── Export/
+    │   │   ├── RoadNetworkSerializer.swift   (JSON export/import)
+    │   │   ├── OBJExporter.swift             (Blender-compatible OBJ export)
+    │   │   └── GLTFExporter.swift            (glTF 2.0 export)
     │   │
-    │   ├── Generators/
-    │   │   ├── LocalConstraintGenerator.swift
-    │   │   └── GlobalGoalGenerator.swift
-    │   │
-    │   └── Evaluators/
-    │       ├── LocalConstraintEvaluator.swift
-    │       └── GlobalGoalEvaluator.swift
+    │   └── Visualization/
+    │       └── (Reserved for future visualization helpers)
     │
     └── Tests/RoadGenerationTests/
-        └── (to be implemented)
+        ├── ConstraintRulesTests.swift
+        ├── GoalRulesTests.swift
+        ├── IntegrationTests.swift
+        └── ExportTests.swift
 ```
 
 ---
 
-## Summary
+## Implementation Status (Updated: 2026-01-04)
 
-### Current Implementation Status
+### ✅ Completed Modules
 
-**✅ Terrain Module (Complete):**
+**Terrain Module (Complete):**
 - ASC file loading and parsing
 - Terrain property calculations (slope, urbanization factor)
 - TerrainMap data structure with district support
@@ -901,12 +900,82 @@ CityWeaver/
 - Full test coverage
 - Interactive UI for terrain editing
 
-**⏳ Road Generation Module (To Be Implemented):**
-- Priority queue-based algorithm
-- Rule-based constraint and goal system
-- Rule generators and evaluators
-- City state integration
-- Road network output
+**Road Generation Module (Complete):**
+- ✅ Priority queue-based algorithm (using Swift Collections Heap)
+- ✅ Rule-based constraint and goal system
+- ✅ Local constraint rules: Boundary, Angle, Terrain, Proximity, District Boundary
+- ✅ Global goal rules: District Pattern, Coastal Growth, Connectivity
+- ✅ Rule generators and evaluators with dynamic rule sets
+- ✅ City state integration with rule regeneration
+- ✅ Complete RoadGenerator implementation
+- ✅ Integration with Terrain package (no duplicate types)
+- ✅ Comprehensive test coverage (unit, integration, export tests)
+
+**Export Module (Complete):**
+- ✅ JSON serialization for road networks with metadata
+- ✅ OBJ export for Blender compatibility (with terrain support)
+- ✅ glTF 2.0 export with materials (embedded or separate binary)
+- ✅ Configurable export options (road width, elevation, terrain downsampling)
+- ✅ Complete export test coverage
+
+**UI Module (Complete):**
+- ✅ Terrain editor with district painting tools
+- ✅ City state configuration view with presets and save/load
+- ✅ Rule configuration view with organized sections
+- ✅ Road generation control panel with full parameter control
+- ✅ 3D visualization with SceneKit (rotate, zoom, pan controls)
+- ✅ Enhanced 2D canvas view with terrain overlay
+- ✅ Export controls for JSON, OBJ, and glTF formats
+- ✅ Simple demo view for quick testing
+
+### 🚧 Future Work
+
+**City Simulation Module:**
+- Dynamic population growth simulation
+- Economic development modeling
+- District evolution over time
+- Traffic flow simulation
+- Integration with incremental road generation
+- Zoning and land use planning
+- Historical city growth tracking
+
+**Advanced Road Features:**
+- Multi-level roads (bridges, tunnels, elevated highways)
+- Public transport routes (metro, tram, bus lines)
+- Road width variation based on traffic requirements
+- Maintenance and renovation cycles
+- Pedestrian paths and bike lanes
+- Parking areas and rest stops
+
+**Performance Optimizations:**
+- Spatial indexing (quadtree/R-tree) for large cities
+- Rule caching for expensive evaluations
+- Parallel proposal processing
+- GPU-accelerated terrain rendering
+- Chunked generation for very large maps
+
+**Advanced Visualization:**
+- Time-lapse animation of city growth
+- Traffic flow visualization with animated vehicles
+- Population density heatmaps
+- Economic activity overlays
+- Day/night cycle rendering
+- Weather and seasonal effects
+
+**Enhanced Export:**
+- FBX export for game engines (Unity, Unreal)
+- GeoJSON for GIS integration
+- Unreal Engine project export with materials
+- Unity package export
+- Animation export (city growth over time)
+- Vector graphics export (SVG) for 2D maps
+
+**Additional Tools:**
+- Batch processing for multiple terrain files
+- Command-line interface for automation
+- Plugin system for custom rules
+- Road network analysis tools (connectivity, efficiency)
+- Cost estimation and budgeting tools
 
 ### Architecture Benefits
 
@@ -963,55 +1032,81 @@ let jsonData = try serializer.export(terrainMap)
 let loadedMap = try serializer.import(from: jsonData)
 ```
 
-### Next Steps for Road Generation Implementation
+### Usage Examples
 
-1. **Create RoadGeneration Package:**
-   - Set up package structure: `Packages/RoadGeneration/`
-   - Add `import Terrain` dependency in Package.swift
-   - Define core data structures (CityState, RoadAttributes, QueryAttributes, RoadSegment)
+#### Complete Workflow Example
 
-2. **Implement Priority Queue:**
-   - Heap-based priority queue for RoadQuery
-   - Efficient O(log n) insertion and extraction
-   - Comparable conformance for RoadQuery based on time
+```swift
+import Terrain
+import RoadGeneration
 
-3. **Define Rule Protocols:**
-   - `LocalConstraintRule` protocol with evaluate method
-   - `GlobalGoalRule` protocol with generateProposals method
-   - `RuleScope` enum: .citywide, .district(DistrictType), .segmentSpecific
+// 1. Load and prepare terrain
+let parser = Terrain.ASCParser()
+let (header, heights) = try parser.load(from: ascFileURL)
+let terrainMap = Terrain.TerrainMapBuilder().buildTerrainMap(header: header, heights: heights)
 
-4. **Implement Configuration System:**
-   - `RuleConfiguration` struct with all parameters
-   - Centralized configuration management
-   - Default values based on realistic city planning
+// 2. Paint districts (or load from JSON)
+terrainMap.setDistrict(at: 10, y: 10, district: .business)
+// ... paint more districts ...
 
-5. **Create Initial Rules:**
-   - `BoundaryConstraintRule` - keep roads within bounds
-   - `TerrainConstraintRule` - use `terrainMap.getNode()` to check slope/urbanization
-   - `DistrictPatternRule` - generate based on `node.district`
+// 3. Configure city state
+let cityState = CityState(
+    population: 50_000,
+    density: 1_500,
+    economicLevel: 0.6,
+    age: 15
+)
 
-6. **Build Core Algorithm:**
-   - `RoadGenerator` class with priority queue processing
-   - Integration with Terrain module (pass `TerrainMap` to generator)
-   - Rule evaluation pipeline (constraints → goals → new queries)
+// 4. Configure rules
+var config = RuleConfiguration()
+config.maxBuildableSlope = 0.3
+config.minUrbanizationFactor = 0.2
 
-7. **Integration Pattern:**
-   ```swift
-   let generator = RoadGenerator(
-       terrainMap: terrainMap,  // From Terrain module
-       cityState: cityState,
-       config: config
-   )
-   let roads = generator.generateRoadNetwork(
-       initialRoad: seedRoad,
-       initialQuery: seedQuery
-   )
-   ```
+// 5. Generate roads
+let generator = RoadGenerator(
+    cityState: cityState,
+    terrainMap: terrainMap,
+    config: config
+)
 
-8. **Add Tests:**
-   - Unit tests for each rule
-   - Integration tests with real TerrainMap data
-   - Performance benchmarks on large maps
+let initialRoad = RoadAttributes(
+    startPoint: CGPoint(x: 500, y: 500),
+    angle: 0,
+    length: 100,
+    roadType: "main"
+)
+
+let initialQuery = QueryAttributes(
+    startPoint: CGPoint(x: 500, y: 500),
+    angle: 0,
+    length: 100,
+    roadType: "main",
+    isMainRoad: true
+)
+
+let roads = generator.generateRoadNetwork(
+    initialRoad: initialRoad,
+    initialQuery: initialQuery
+)
+
+// 6. Export results
+let serializer = RoadNetworkSerializer()
+let jsonData = try serializer.export(
+    roads,
+    cityState: RoadNetworkSerializer.CityStateSnapshot(...),
+    configuration: RoadNetworkSerializer.ConfigurationSnapshot(...)
+)
+try jsonData.write(to: outputURL)
+
+// 7. Export for Blender
+let objExporter = OBJExporter()
+let (obj, mtl) = objExporter.export(
+    segments: roads,
+    terrainMap: terrainMap,
+    options: OBJExporter.ExportOptions(includeTerrain: true)
+)
+try objExporter.saveToFiles(obj: obj, mtl: mtl, directory: outputDir)
+```
 
 ### Available Sample Data
 
