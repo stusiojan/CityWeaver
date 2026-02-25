@@ -16,7 +16,7 @@ test-core:
 	cd Packages/Core/ && swift test | xcbeautify
 
 test-rga:
-	cd Packages/RGA/ && swift test | xcbeautify
+	cd Packages/RoadGeneration/ && swift test | xcbeautify
 
 test-terrain:
 	cd Packages/Terrain/ && swift test | xcbeautify
