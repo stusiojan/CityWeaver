@@ -55,7 +55,7 @@ enum RuleScope {
 |--------|----------|-------|---------|
 | **BoundaryConstraintRule** | 10 | citywide | Sprawdza czy droga mieści się w `cityBounds` (start i koniec) |
 | **TerrainConstraintRule** | 15 | citywide | Sprawdza nachylenie < `maxBuildableSlope` i urbanizację > `minUrbanizationFactor` |
-| **AngleConstraintRule** | 20 | segmentSpecific | Wymusza kąty skrzyżowań — inne progi dla dróg głównych (60-170°) i wewnętrznych (30-180°) |
+| **AngleConstraintRule** | 20 | segmentSpecific | Wymusza kąty skrzyżowań — inne progi dla dróg głównych (60-170°) i wewnętrznych (30-180°). Kontynuacje (start nowej drogi ≈ endpoint istniejącej, dystans < 1.0) pomijane |
 | **ProximityConstraintRule** | 25 | citywide | Zapobiega zbyt bliskim drogom — sprawdza odległość endpoints > `minimumRoadDistance` |
 | **DistrictBoundaryRule** | 30 | segmentSpecific | Blokuje drogi wewnętrzne na granicach dzielnic; drogi główne mogą przechodzić |
 
@@ -82,7 +82,8 @@ Najważniejsza reguła — generuje drogi dopasowane do typu dzielnicy:
    - Losuje z prawdopodobieństwa rozgałęzienia
    - Oblicza nowy punkt startowy (koniec bieżącej drogi)
    - Tworzy `RoadProposal` z dopasowaną długością (× mnożnik)
-3. Drogi kontynuujące (kąt 0) dostają `defaultDelay`, rozgałęzienia `branchDelay`
+3. Długość nowej drogi: `max(length × mnożnik, minimumRoadDistance)` — floor zapobiega degeneracji do zerowej długości
+4. Drogi kontynuujące (kąt 0) dostają `defaultDelay`, rozgałęzienia `branchDelay`
 
 ## Generatory reguł
 
@@ -129,6 +130,12 @@ Dodanie nowej reguły:
 3. Dodanie parametrów do `RuleConfiguration`
 4. Update generatora w `LocalConstraintGenerator` / `GlobalGoalGenerator`
 
-## Plik źródłowy
+## Pliki źródłowe
 
-`Packages/RoadGeneration/Sources/RoadGeneration/Core/DataStructures.swift`
+```
+Core/Rules/RuleProtocols.swift                          — protokoły reguł
+Core/Rules/LocalConstraints/{Boundary,Terrain,Angle,Proximity,DistrictBoundary}ConstraintRule.swift
+Core/Rules/GlobalGoals/{DistrictPattern,CoastalGrowth,Connectivity}Rule.swift
+Core/Evaluation/{LocalConstraint,GlobalGoal}{Generator,Evaluator}.swift
+Core/Models/ConstraintTypes.swift                       — ConstraintState, RuleScope, ConstraintResult
+```

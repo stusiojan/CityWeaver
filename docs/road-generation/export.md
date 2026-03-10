@@ -1,6 +1,18 @@
 # Eksport sieci dróg
 
-Trzy formaty eksportu: JSON (dane + metadane), OBJ (Blender), glTF (game engines). Wszystkie eksportery są `Sendable` i mogą pracować z opcjonalnymi danymi terenu.
+Dwa formaty eksportu: JSON (dane + metadane) i OBJ (Blender). Oba wspierają wybór eksportowanej zawartości: tylko drogi, tylko teren, lub drogi i teren razem.
+
+## ExportContent
+
+Wspólny enum kontrolujący zakres eksportu:
+
+```swift
+public enum ExportContent: String, CaseIterable, Sendable {
+    case roadsOnly = "Roads Only"
+    case terrainOnly = "Terrain Only"
+    case roadsAndTerrain = "Roads & Terrain"
+}
+```
 
 ## JSON — RoadNetworkSerializer
 
@@ -10,9 +22,11 @@ Pełny eksport z metadanymi do archiwizacji i ponownego importu.
 public struct RoadNetworkSerializer: Sendable {
     public func export(_ segments: [RoadSegment],
                        cityState: CityStateSnapshot,
-                       configuration: ConfigurationSnapshot) throws -> Data
+                       configuration: ConfigurationSnapshot,
+                       content: ExportContent = .roadsOnly,
+                       terrainSnapshot: TerrainSnapshot? = nil) throws -> Data
 
-    public func `import`(from data: Data) throws -> (roads: [RoadSegment], metadata: Metadata)
+    public func `import`(from data: Data) throws -> (roads: [RoadSegment], metadata: Metadata, terrain: TerrainSnapshot?)
 
     // uproszczona wersja — tylko segmenty, bez metadanych
     public func exportSimple(_ segments: [RoadSegment]) throws -> Data
@@ -30,13 +44,19 @@ Struktura JSON:
   },
   "roads": [
     { "id": "uuid", "attributes": { "startPoint": {...}, "angle": 0, "length": 100, "roadType": "main" }, "createdAt": 0 }
-  ]
+  ],
+  "terrain": {
+    "cols": 500, "rows": 500, "cellsize": 1.0,
+    "heights": [[...]]
+  }
 }
 ```
 
+Pola `roads` i `terrain` są opcjonalne — obecność zależy od wybranego `ExportContent`.
+
 ## OBJ — OBJExporter
 
-Format Wavefront OBJ kompatybilny z Blenderem. Generuje geometrię 3D dróg i opcjonalnie terenu.
+Format Wavefront OBJ kompatybilny z Blenderem. Generuje geometrię 3D dróg i/lub terenu w zależności od `ExportContent`.
 
 ```swift
 public struct OBJExporter: Sendable {
@@ -52,7 +72,7 @@ public struct OBJExporter: Sendable {
 public struct ExportOptions: Sendable {
     public let roadWidth: Double           // domyślnie 4.0m
     public let roadElevation: Double       // domyślnie 0.1m nad terenem
-    public let includeTerrain: Bool        // domyślnie true
+    public let content: ExportContent      // domyślnie .roadsAndTerrain
     public let terrainDownsample: Int      // domyślnie 1 (pełna rozdzielczość)
     public let terrainVerticalScale: Double // domyślnie 1.0
 }
@@ -70,54 +90,19 @@ public struct ExportOptions: Sendable {
 2. Wybierz plik `.obj` (`.mtl` ładuje się automatycznie)
 3. Drogi i teren z materiałami
 
-## glTF — GLTFExporter
-
-Format glTF 2.0 z materiałami PBR (metallic/roughness). Lepsze wsparcie materiałowe niż OBJ.
-
-```swift
-public struct GLTFExporter: Sendable {
-    @MainActor
-    public func export(segments: [RoadSegment],
-                       terrainMap: TerrainMap?,
-                       options: ExportOptions) -> (gltf: String, bin: Data?)
-
-    public func saveToFiles(gltf: String, bin: Data?,
-                            directory: URL, basename: String) throws
-}
-```
-
-### Opcje
-
-Identyczne jak OBJ plus:
-- `embedBinary: Bool` — true: dane binarne jako base64 w pliku JSON; false: osobny plik `.bin`
-
-### Struktura glTF
-
-```
-.gltf (JSON)
-├── scene → nodes → meshes
-├── accessors → bufferViews → buffers
-├── materials (PBR metallic/roughness)
-└── opcjonalnie: embedded base64 binary data
-
-.bin (opcjonalnie)
-└── vertex positions + indices
-```
-
 ## Porównanie formatów
 
-| Cecha | JSON | OBJ | glTF |
-|-------|------|-----|------|
-| Metadane generowania | tak | nie | nie |
-| Reimport do CityWeaver | tak | nie | nie |
-| Geometria 3D | nie | tak | tak |
-| Materiały PBR | n/a | bazowe | tak |
-| Teren | nie | opcjonalnie | opcjonalnie |
-| Game engines | nie | limitowane | tak |
-| Rozmiar pliku | mały | duży (tekst) | mały (binarny) |
+| Cecha | JSON | OBJ |
+|-------|------|-----|
+| Metadane generowania | tak | nie |
+| Reimport do CityWeaver | tak | nie |
+| Geometria 3D | nie | tak |
+| Teren | opcjonalnie | opcjonalnie |
+| Kontrola zawartości | tak | tak |
+| Rozmiar pliku | mały–średni | duży (tekst) |
 
 ## Pliki źródłowe
 
+- `Packages/RoadGeneration/Sources/RoadGeneration/Export/ExportContent.swift`
 - `Packages/RoadGeneration/Sources/RoadGeneration/Export/RoadNetworkSerializer.swift`
 - `Packages/RoadGeneration/Sources/RoadGeneration/Export/OBJExporter.swift`
-- `Packages/RoadGeneration/Sources/RoadGeneration/Export/GLTFExporter.swift`

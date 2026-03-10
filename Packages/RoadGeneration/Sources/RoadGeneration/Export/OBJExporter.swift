@@ -10,23 +10,23 @@ public struct OBJExporter: Sendable {
         public let roadWidth: Double
         /// Height of road surface above terrain
         public let roadElevation: Double
-        /// Whether to include terrain mesh
-        public let includeTerrain: Bool
+        /// What content to include in the export
+        public let content: ExportContent
         /// Terrain downsampling factor (1 = full resolution)
         public let terrainDownsample: Int
         /// Vertical scale multiplier for terrain
         public let terrainVerticalScale: Double
-        
+
         public init(
             roadWidth: Double = 4.0,
             roadElevation: Double = 0.1,
-            includeTerrain: Bool = true,
+            content: ExportContent = .roadsAndTerrain,
             terrainDownsample: Int = 1,
             terrainVerticalScale: Double = 1.0
         ) {
             self.roadWidth = roadWidth
             self.roadElevation = roadElevation
-            self.includeTerrain = includeTerrain
+            self.content = content
             self.terrainDownsample = terrainDownsample
             self.terrainVerticalScale = terrainVerticalScale
         }
@@ -60,37 +60,41 @@ public struct OBJExporter: Sendable {
         """
         
         var vertexIndex = 1
-        
+        let includeRoads = options.content != .terrainOnly
+        let includeTerrain = options.content != .roadsOnly
+
         // Generate road materials and geometry
-        mtlContent += generateRoadMaterial()
-        
-        for (index, segment) in segments.enumerated() {
-            let (vertices, faces) = generateRoadGeometry(
-                segment: segment,
-                terrainMap: terrainMap,
-                options: options
-            )
-            
-            objContent += "\n# Road segment \(index + 1)\n"
-            objContent += "o Road_\(index + 1)\n"
-            objContent += "usemtl road_\(segment.attributes.roadType)\n"
-            
-            // Add vertices
-            for vertex in vertices {
-                objContent += String(format: "v %.6f %.6f %.6f\n", vertex.x, vertex.y, vertex.z)
+        if includeRoads {
+            mtlContent += generateRoadMaterial()
+
+            for (index, segment) in segments.enumerated() {
+                let (vertices, faces) = generateRoadGeometry(
+                    segment: segment,
+                    terrainMap: terrainMap,
+                    options: options
+                )
+
+                objContent += "\n# Road segment \(index + 1)\n"
+                objContent += "o Road_\(index + 1)\n"
+                objContent += "usemtl road_\(segment.attributes.roadType)\n"
+
+                // Add vertices
+                for vertex in vertices {
+                    objContent += String(format: "v %.6f %.6f %.6f\n", vertex.x, vertex.y, vertex.z)
+                }
+
+                // Add faces (adjust indices by current vertex count)
+                for face in faces {
+                    let adjustedFace = face.map { $0 + vertexIndex - 1 }
+                    objContent += "f \(adjustedFace.map { String($0) }.joined(separator: " "))\n"
+                }
+
+                vertexIndex += vertices.count
             }
-            
-            // Add faces (adjust indices by current vertex count)
-            for face in faces {
-                let adjustedFace = face.map { $0 + vertexIndex - 1 }
-                objContent += "f \(adjustedFace.map { String($0) }.joined(separator: " "))\n"
-            }
-            
-            vertexIndex += vertices.count
         }
-        
+
         // Generate terrain if requested
-        if options.includeTerrain, let terrainMap = terrainMap {
+        if includeTerrain, let terrainMap = terrainMap {
             mtlContent += generateTerrainMaterial()
             let (terrainObj, terrainVertices) = generateTerrainGeometry(
                 terrainMap: terrainMap,

@@ -99,7 +99,7 @@ final class ExportTests: XCTestCase {
         XCTAssertNotNil(json, "Should produce valid JSON")
         
         // Import back
-        let (importedRoads, importedMetadata) = try serializer.import(from: jsonData)
+        let (importedRoads, importedMetadata, _) = try serializer.import(from: jsonData)
         
         // Verify road count matches
         XCTAssertEqual(importedRoads.count, sampleRoads.count, "Should import same number of roads")
@@ -163,14 +163,14 @@ final class ExportTests: XCTestCase {
     }
     
     // MARK: - OBJ Export Tests
-    
+
     @MainActor
     func testOBJExportProducesValidFormat() {
         let exporter = OBJExporter()
         let options = OBJExporter.ExportOptions(
             roadWidth: 4.0,
             roadElevation: 0.1,
-            includeTerrain: false,
+            content: .roadsOnly,
             terrainDownsample: 1,
             terrainVerticalScale: 1.0
         )
@@ -197,7 +197,7 @@ final class ExportTests: XCTestCase {
         let options = OBJExporter.ExportOptions(
             roadWidth: 4.0,
             roadElevation: 0.1,
-            includeTerrain: true,
+            content: .roadsAndTerrain,
             terrainDownsample: 5,  // Downsample heavily for test
             terrainVerticalScale: 1.0
         )
@@ -218,9 +218,26 @@ final class ExportTests: XCTestCase {
     }
     
     @MainActor
+    func testOBJExportTerrainOnly() {
+        let exporter = OBJExporter()
+        let options = OBJExporter.ExportOptions(
+            content: .terrainOnly,
+            terrainDownsample: 5
+        )
+
+        let (obj, mtl) = exporter.export(segments: sampleRoads, terrainMap: terrainMap, options: options)
+
+        // Should include terrain but no roads
+        XCTAssertTrue(obj.contains("o Terrain"), "OBJ should include terrain object")
+        XCTAssertFalse(obj.contains("o Road_"), "OBJ should not include road objects")
+        XCTAssertTrue(mtl.contains("newmtl terrain"), "MTL should define terrain material")
+        XCTAssertFalse(mtl.contains("newmtl road_"), "MTL should not define road materials")
+    }
+
+    @MainActor
     func testOBJVertexCount() {
         let exporter = OBJExporter()
-        let options = OBJExporter.ExportOptions(includeTerrain: false)
+        let options = OBJExporter.ExportOptions(content: .roadsOnly)
         
         let (obj, _) = exporter.export(segments: sampleRoads, terrainMap: nil, options: options)
         
@@ -232,117 +249,60 @@ final class ExportTests: XCTestCase {
                       "Should have 8 vertices per road segment")
     }
     
-    // MARK: - GLTF Export Tests
-    
+    // MARK: - JSON Export with Terrain
+
     @MainActor
-    func testGLTFExportProducesValidJSON() {
-        let exporter = GLTFExporter()
-        let options = GLTFExporter.ExportOptions(
-            includeTerrain: false,
-            embedBinary: true
+    func testJSONExportWithTerrain() throws {
+        let serializer = RoadNetworkSerializer()
+
+        let cityState = RoadNetworkSerializer.CityStateSnapshot(
+            population: 50_000, density: 1_500, economicLevel: 0.6, age: 15
         )
-        
-        let (gltf, _) = exporter.export(segments: sampleRoads, terrainMap: nil, options: options)
-        
-        // Should be valid JSON
-        let gltfData = gltf.data(using: .utf8)!
-        let json = try? JSONSerialization.jsonObject(with: gltfData) as? [String: Any]
-        
-        XCTAssertNotNil(json, "GLTF should be valid JSON")
-        
-        // Check required GLTF fields
-        XCTAssertNotNil(json?["asset"], "Should have asset field")
-        XCTAssertNotNil(json?["scene"], "Should have scene field")
-        XCTAssertNotNil(json?["scenes"], "Should have scenes array")
-        XCTAssertNotNil(json?["nodes"], "Should have nodes array")
-        XCTAssertNotNil(json?["meshes"], "Should have meshes array")
-        XCTAssertNotNil(json?["materials"], "Should have materials array")
-        XCTAssertNotNil(json?["accessors"], "Should have accessors array")
-        XCTAssertNotNil(json?["bufferViews"], "Should have bufferViews array")
-        XCTAssertNotNil(json?["buffers"], "Should have buffers array")
-    }
-    
-    @MainActor
-    func testGLTFEmbeddedBinary() {
-        let exporter = GLTFExporter()
-        let options = GLTFExporter.ExportOptions(
-            includeTerrain: false,
-            embedBinary: true
+        let config = RoadNetworkSerializer.ConfigurationSnapshot(
+            maxBuildableSlope: 0.3, minUrbanizationFactor: 0.2, minimumRoadDistance: 10.0
         )
-        
-        let (gltf, bin) = exporter.export(segments: sampleRoads, terrainMap: nil, options: options)
-        
-        // With embedded binary, bin should be nil
-        XCTAssertNil(bin, "Binary should be embedded, not separate")
-        
-        // GLTF should contain data URI (JSONSerialization may escape slashes)
-        let containsDataURI = gltf.contains("data:application/octet-stream;base64,")
-            || gltf.contains("data:application\\/octet-stream;base64,")
-        XCTAssertTrue(containsDataURI, "Should contain embedded base64 data")
-    }
-    
-    @MainActor
-    func testGLTFSeparateBinary() {
-        let exporter = GLTFExporter()
-        let options = GLTFExporter.ExportOptions(
-            includeTerrain: false,
-            embedBinary: false
+        let terrainSnapshot = RoadNetworkSerializer.TerrainSnapshot(terrainMap: terrainMap)
+
+        let data = try serializer.export(
+            sampleRoads,
+            cityState: cityState,
+            configuration: config,
+            content: .roadsAndTerrain,
+            terrainSnapshot: terrainSnapshot
         )
-        
-        let (gltf, bin) = exporter.export(segments: sampleRoads, terrainMap: nil, options: options)
-        
-        // With separate binary, bin should not be nil
-        XCTAssertNotNil(bin, "Binary should be separate")
-        XCTAssertFalse(bin!.isEmpty, "Binary data should not be empty")
-        
-        // GLTF should reference external file
-        XCTAssertTrue(gltf.contains("\"uri\":\"roads.bin\"") || gltf.contains("\"uri\" : \"roads.bin\""), 
-                     "Should reference external binary file")
+
+        let (importedRoads, _, importedTerrain) = try serializer.import(from: data)
+
+        XCTAssertEqual(importedRoads.count, sampleRoads.count)
+        XCTAssertNotNil(importedTerrain, "Should contain terrain data")
+        XCTAssertEqual(importedTerrain?.cols, 50)
+        XCTAssertEqual(importedTerrain?.rows, 50)
     }
-    
+
     @MainActor
-    func testGLTFMeshCount() {
-        let exporter = GLTFExporter()
-        let options = GLTFExporter.ExportOptions(includeTerrain: false)
-        
-        let (gltf, _) = exporter.export(segments: sampleRoads, terrainMap: nil, options: options)
-        
-        let gltfData = gltf.data(using: .utf8)!
-        let json = try? JSONSerialization.jsonObject(with: gltfData) as? [String: Any]
-        
-        if let meshes = json?["meshes"] as? [[String: Any]] {
-            XCTAssertEqual(meshes.count, sampleRoads.count, 
-                          "Should have one mesh per road segment")
-        } else {
-            XCTFail("Could not parse meshes array")
-        }
-    }
-    
-    @MainActor
-    func testGLTFWithTerrain() {
-        let exporter = GLTFExporter()
-        let options = GLTFExporter.ExportOptions(
-            includeTerrain: true,
-            terrainDownsample: 10,
-            embedBinary: true
+    func testJSONExportTerrainOnly() throws {
+        let serializer = RoadNetworkSerializer()
+
+        let cityState = RoadNetworkSerializer.CityStateSnapshot(
+            population: 50_000, density: 1_500, economicLevel: 0.6, age: 15
         )
-        
-        let (gltf, _) = exporter.export(segments: sampleRoads, terrainMap: terrainMap, options: options)
-        
-        let gltfData = gltf.data(using: .utf8)!
-        let json = try? JSONSerialization.jsonObject(with: gltfData) as? [String: Any]
-        
-        if let meshes = json?["meshes"] as? [[String: Any]] {
-            // Should have roads + 1 terrain mesh
-            XCTAssertEqual(meshes.count, sampleRoads.count + 1, 
-                          "Should have road meshes plus terrain mesh")
-        }
-        
-        if let materials = json?["materials"] as? [[String: Any]] {
-            // Should have road material + terrain material
-            XCTAssertEqual(materials.count, 2, 
-                          "Should have road and terrain materials")
-        }
+        let config = RoadNetworkSerializer.ConfigurationSnapshot(
+            maxBuildableSlope: 0.3, minUrbanizationFactor: 0.2, minimumRoadDistance: 10.0
+        )
+        let terrainSnapshot = RoadNetworkSerializer.TerrainSnapshot(terrainMap: terrainMap)
+
+        let data = try serializer.export(
+            sampleRoads,
+            cityState: cityState,
+            configuration: config,
+            content: .terrainOnly,
+            terrainSnapshot: terrainSnapshot
+        )
+
+        let (importedRoads, _, importedTerrain) = try serializer.import(from: data)
+
+        XCTAssertTrue(importedRoads.isEmpty, "Should not contain roads when exporting terrain only")
+        XCTAssertNotNil(importedTerrain, "Should contain terrain data")
     }
 }
 

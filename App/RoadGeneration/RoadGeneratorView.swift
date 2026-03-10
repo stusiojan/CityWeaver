@@ -35,12 +35,15 @@ struct RoadGeneratorView: View {
     @State private var showingConfigSheet = false
     @State private var configSheetType: ConfigSheetType = .cityState
 
+    // Export
+    @State private var exportContent: ExportContent = .roadsAndTerrain
+
     // Error handling
     @State private var loadError: String?
     @State private var showingLoadError = false
 
-    // Export state
-    @State private var showingExportOptions = false
+    // Terrain generator
+    @State private var showTerrainGenerator = false
 
     enum ConfigSheetType {
         case cityState
@@ -107,9 +110,6 @@ struct RoadGeneratorView: View {
             }
             .frame(minWidth: 600, minHeight: 500)
         }
-        .sheet(isPresented: $showingExportOptions) {
-            ExportOptionsView(roads: generatedRoads, terrainMap: terrainMap)
-        }
         .alert("Error Loading File", isPresented: $showingLoadError) {
             Button("OK") {}
         } message: {
@@ -154,6 +154,21 @@ struct RoadGeneratorView: View {
 
                     Button("Load JSON", systemImage: "doc") {
                         loadJSONFile()
+                    }
+                }
+
+                Button("Generate Terrain", systemImage: "waveform") {
+                    showTerrainGenerator.toggle()
+                }
+
+                if showTerrainGenerator {
+                    Divider()
+                    TerrainGeneratorFormView { map in
+                        terrainMap = map
+                        let dims = map.dimensions
+                        terrainFileName = "Generated (\(dims.cols)×\(dims.rows))"
+                        onTerrainLoaded()
+                        showTerrainGenerator = false
                     }
                 }
 
@@ -315,8 +330,22 @@ struct RoadGeneratorView: View {
     @ViewBuilder
     private var exportSection: some View {
         if !generatedRoads.isEmpty {
-            Button("Export Roads", systemImage: "square.and.arrow.up") {
-                showingExportOptions = true
+            GroupBox("Export") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Content", selection: $exportContent) {
+                        ForEach(ExportContent.allCases, id: \.self) { content in
+                            Text(content.rawValue).tag(content)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Button("Export JSON", systemImage: "doc.text") {
+                        exportJSON()
+                    }
+                    Button("Export OBJ", systemImage: "cube") {
+                        exportOBJ()
+                    }
+                }
             }
         }
     }
@@ -491,6 +520,74 @@ struct RoadGeneratorView: View {
         }
     }
 
+    // MARK: - Export
+
+    private func exportJSON() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "road_network.json"
+
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task {
+                    do {
+                        let serializer = RoadNetworkSerializer()
+                        let cityState = RoadNetworkSerializer.CityStateSnapshot(
+                            population: population,
+                            density: density,
+                            economicLevel: economicLevel,
+                            age: age
+                        )
+                        let config = RoadNetworkSerializer.ConfigurationSnapshot(
+                            maxBuildableSlope: ruleConfig.maxBuildableSlope,
+                            minUrbanizationFactor: ruleConfig.minUrbanizationFactor,
+                            minimumRoadDistance: ruleConfig.minimumRoadDistance
+                        )
+                        let terrainSnapshot: RoadNetworkSerializer.TerrainSnapshot? = if let terrainMap {
+                            RoadNetworkSerializer.TerrainSnapshot(terrainMap: terrainMap)
+                        } else {
+                            nil
+                        }
+                        let data = try serializer.export(
+                            generatedRoads,
+                            cityState: cityState,
+                            configuration: config,
+                            content: exportContent,
+                            terrainSnapshot: terrainSnapshot
+                        )
+                        try data.write(to: url)
+                    } catch {
+                        logger.error("Failed to export JSON: \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func exportOBJ() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "obj")!]
+        panel.nameFieldStringValue = "road_network.obj"
+
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task {
+                    let exporter = OBJExporter()
+                    let options = OBJExporter.ExportOptions(content: exportContent)
+                    let (obj, mtl) = exporter.export(segments: generatedRoads, terrainMap: terrainMap, options: options)
+
+                    do {
+                        let directory = url.deletingLastPathComponent()
+                        let basename = url.deletingPathExtension().lastPathComponent
+                        try exporter.saveToFiles(obj: obj, mtl: mtl, directory: directory, basename: basename)
+                    } catch {
+                        logger.error("Failed to export OBJ: \(error)")
+                    }
+                }
+            }
+        }
+    }
+
     private func drawRoads(context: GraphicsContext, size: CGSize) {
         guard !generatedRoads.isEmpty else { return }
 
@@ -536,123 +633,6 @@ struct RoadGeneratorView: View {
 
             let color: Color = segment.attributes.roadType == "main" ? .blue : .gray
             context.stroke(path, with: .color(color), lineWidth: 2)
-        }
-    }
-}
-
-/// Export options sheet
-struct ExportOptionsView: View {
-    let roads: [RoadSegment]
-    let terrainMap: Terrain.TerrainMap?
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Export Format") {
-                    Button("Export as JSON", systemImage: "doc.text") {
-                        exportJSON()
-                    }
-
-                    Button("Export as OBJ (Blender)", systemImage: "cube") {
-                        exportOBJ()
-                    }
-
-                    Button("Export as glTF", systemImage: "cube.transparent") {
-                        exportGLTF()
-                    }
-                }
-            }
-            .formStyle(.grouped)
-            .navigationTitle("Export Roads")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .frame(width: 400, height: 300)
-    }
-
-    private func exportJSON() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "road_network.json"
-
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    do {
-                        let serializer = RoadNetworkSerializer()
-                        let cityState = RoadNetworkSerializer.CityStateSnapshot(
-                            population: 50_000,
-                            density: 1_500,
-                            economicLevel: 0.6,
-                            age: 15
-                        )
-                        let config = RoadNetworkSerializer.ConfigurationSnapshot(
-                            maxBuildableSlope: 0.3,
-                            minUrbanizationFactor: 0.2,
-                            minimumRoadDistance: 10.0
-                        )
-                        let data = try serializer.export(roads, cityState: cityState, configuration: config)
-                        try data.write(to: url)
-                    } catch {
-                        print("Failed to export JSON: \(error)")
-                    }
-                }
-            }
-        }
-    }
-
-    private func exportOBJ() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "obj")!]
-        panel.nameFieldStringValue = "road_network.obj"
-
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    let exporter = OBJExporter()
-                    let options = OBJExporter.ExportOptions(includeTerrain: terrainMap != nil)
-                    let (obj, mtl) = exporter.export(segments: roads, terrainMap: terrainMap, options: options)
-
-                    do {
-                        let directory = url.deletingLastPathComponent()
-                        let basename = url.deletingPathExtension().lastPathComponent
-                        try exporter.saveToFiles(obj: obj, mtl: mtl, directory: directory, basename: basename)
-                    } catch {
-                        print("Failed to export OBJ: \(error)")
-                    }
-                }
-            }
-        }
-    }
-
-    private func exportGLTF() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "gltf")!]
-        panel.nameFieldStringValue = "road_network.gltf"
-
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    let exporter = GLTFExporter()
-                    let options = GLTFExporter.ExportOptions(includeTerrain: terrainMap != nil, embedBinary: true)
-                    let (gltf, bin) = exporter.export(segments: roads, terrainMap: terrainMap, options: options)
-
-                    do {
-                        let directory = url.deletingLastPathComponent()
-                        let basename = url.deletingPathExtension().lastPathComponent
-                        try exporter.saveToFiles(gltf: gltf, bin: bin, directory: directory, basename: basename)
-                    } catch {
-                        print("Failed to export glTF: \(error)")
-                    }
-                }
-            }
         }
     }
 }

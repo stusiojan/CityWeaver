@@ -39,7 +39,6 @@ App (SwiftUI) ─────────────┐
     │                      │
     ├── Terrain            │ Swift Packages
     ├── RoadGeneration ────┤ (w Packages/)
-    ├── RGA                │
     ├── Core               │
     └── Shared             │
                            │

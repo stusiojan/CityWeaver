@@ -92,14 +92,14 @@ final class GoalRulesTests: XCTestCase {
         let roadAttrs = RoadAttributes(
             startPoint: CGPoint(x: 2, y: 5),  // In residential district
             angle: 0,
-            length: 2,
+            length: 20,
             roadType: "residential"
         )
-        
+
         let queryAttrs = QueryAttributes(
             startPoint: CGPoint(x: 2, y: 5),
             angle: 0,
-            length: 2,
+            length: 20,
             roadType: "residential"
         )
         
@@ -360,22 +360,31 @@ final class GoalRulesTests: XCTestCase {
     
     @MainActor
     func testProposalDelays() {
-        let rule = DistrictPatternRule(config: config)
-        
+        // Use probability 1.0 so all angles are always generated (deterministic)
+        var deterministicConfig = config!
+        deterministicConfig.branchingProbability = [
+            .business: 1.0,
+            .residential: 1.0,
+            .oldTown: 1.0,
+            .industrial: 1.0,
+            .park: 1.0,
+        ]
+        let rule = DistrictPatternRule(config: deterministicConfig)
+
         let roadAttrs = RoadAttributes(
             startPoint: CGPoint(x: 6, y: 5),
             angle: 0,
             length: 10,
             roadType: "main"
         )
-        
+
         let queryAttrs = QueryAttributes(
             startPoint: CGPoint(x: 6, y: 5),
             angle: 0,
             length: 10,
             roadType: "main"
         )
-        
+
         let context = GenerationContext(
             currentLocation: CGPoint(x: 6, y: 5),
             terrainMap: terrainMap,
@@ -383,17 +392,19 @@ final class GoalRulesTests: XCTestCase {
             existingInfrastructure: [],
             queryAttributes: queryAttrs
         )
-        
+
         let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
-        
-        // First proposal (straight ahead) should have defaultDelay
+
+        XCTAssertFalse(proposals.isEmpty, "Should generate at least one proposal")
+
+        // First proposal (straight ahead, angle index 0) should have defaultDelay
         // Branch proposals should have branchDelay
         for (index, proposal) in proposals.enumerated() {
             if index == 0 {
-                XCTAssertEqual(proposal.delay, config.defaultDelay, 
+                XCTAssertEqual(proposal.delay, deterministicConfig.defaultDelay,
                               "First proposal should use default delay")
             } else {
-                XCTAssertEqual(proposal.delay, config.branchDelay, 
+                XCTAssertEqual(proposal.delay, deterministicConfig.branchDelay,
                               "Branch proposals should use branch delay")
             }
         }

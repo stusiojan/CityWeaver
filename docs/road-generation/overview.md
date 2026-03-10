@@ -11,7 +11,35 @@ Przyjmuje `TerrainMap` (z pakietu Terrain) i konfigurację, generuje sieć dróg
 ```
 Packages/RoadGeneration/Sources/RoadGeneration/
 ├── Core/
-│   └── DataStructures.swift       — typy danych, reguły, generator, evaluatory
+│   ├── Models/
+│   │   ├── RoadAttributes.swift          — geometria segmentu drogi
+│   │   ├── QueryAttributes.swift         — dane propozycji drogi
+│   │   ├── RoadSegment.swift             — zatwierdzony segment drogi
+│   │   ├── RoadQuery.swift               — propozycja w priority queue
+│   │   ├── CityState.swift               — stan symulacji miasta
+│   │   ├── RuleConfiguration.swift       — parametry algorytmu
+│   │   ├── GenerationContext.swift        — kontekst ewaluacji reguł
+│   │   ├── GenerationReport.swift        — raport diagnostyczny
+│   │   └── ConstraintTypes.swift         — ConstraintState, RuleScope, ConstraintResult, RoadProposal
+│   ├── Rules/
+│   │   ├── RuleProtocols.swift           — LocalConstraintRule, GlobalGoalRule
+│   │   ├── LocalConstraints/
+│   │   │   ├── BoundaryConstraintRule.swift
+│   │   │   ├── TerrainConstraintRule.swift
+│   │   │   ├── AngleConstraintRule.swift
+│   │   │   ├── ProximityConstraintRule.swift
+│   │   │   └── DistrictBoundaryRule.swift
+│   │   └── GlobalGoals/
+│   │       ├── DistrictPatternRule.swift
+│   │       ├── CoastalGrowthRule.swift
+│   │       └── ConnectivityRule.swift
+│   ├── Evaluation/
+│   │   ├── LocalConstraintGenerator.swift
+│   │   ├── GlobalGoalGenerator.swift
+│   │   ├── LocalConstraintEvaluator.swift
+│   │   └── GlobalGoalEvaluator.swift
+│   ├── RoadGenerator.swift               — główna klasa algorytmu
+│   └── ExampleUsage.swift                — demo do szybkiego testu
 ├── Export/
 │   ├── RoadNetworkSerializer.swift — JSON export/import z metadanymi
 │   ├── OBJExporter.swift           — Wavefront OBJ (Blender)
@@ -120,7 +148,7 @@ RoadGeneration
 
 ## Decyzje projektowe
 
-- **Wszystko w jednym pliku (DataStructures.swift)**: ~1000 linii — algorytmiczny kod gdzie reguły, evaluatory i generator są silnie powiązane. Trade-off: jeden duży plik vs wiele małych z ciągłymi cross-references
+- **Rozbicie na mniejsze pliki**: Models/, Rules/, Evaluation/ + RoadGenerator.swift — tematyczny podział na ~20 plików zamiast jednego monolitu. SPM autodiscovery eliminuje potrzebę ręcznego zarządzania listą plików
 - **Protokoły reguł z priority**: umożliwia dodawanie nowych reguł bez modyfikacji core algorytmu
 - **Heap zamiast sortowanej tablicy**: O(log n) insert/extract vs O(n) dla tablicy
 - **@MainActor na RoadGenerator**: spójne z TerrainMap, upraszcza integrację z UI

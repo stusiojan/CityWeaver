@@ -22,6 +22,9 @@ Packages/Terrain/Sources/Terrain/
 ├── Builder/
 │   ├── TerrainMapBuilder.swift      — synchroniczny builder (małe mapy)
 │   └── OptimizedTerrainMapBuilder.swift — async builder z downsampling
+├── Generator/
+│   ├── TerrainGenerator.swift       — parametryczny generator terenów testowych
+│   └── DistrictLayout.swift         — malowanie dzielnic na wygenerowanym terenie
 ├── Validation/
 │   └── DistrictValidator.swift      — walidacja spójności dzielnic
 └── Serialization/
@@ -31,19 +34,20 @@ Packages/Terrain/Sources/Terrain/
 ## Dataflow
 
 ```
-Plik ASC (.asc)
-    │
-    ▼
-ASCParser.load(from:)
-    │
-    ├─► ASCHeader (metadane: wymiary, cellsize, origin)
-    └─► [[Double]] (siatka wysokości)
-    │
-    ▼
-TerrainMapBuilder / OptimizedTerrainMapBuilder
-    │
-    ├─► TerrainCalculator.calculateSlope()         — metoda Horna (Sobel 3x3)
-    └─► TerrainCalculator.calculateUrbanizationFactor()
+Plik ASC (.asc)                        TerrainGenerator
+    │                                       │
+    ▼                                       ▼
+ASCParser.load(from:)              .flat() / .slope() / .hilly()
+    │                                       │
+    ├─► ASCHeader                           ├─► Sobel 3x3 (slope)
+    └─► [[Double]]                          └─► urbanizationFactor
+    │                                       │
+    ▼                                       ▼
+TerrainMapBuilder / Optimized       TerrainMap (gotowa do użycia)
+    │                                       │
+    ├─► TerrainCalculator                   ├─► DistrictLayout.paintAll()
+    │   .calculateSlope()                   ├─► DistrictLayout.paintGrid()
+    │   .calculateUrbanizationFactor()      └─► DistrictLayout.paintRect()
     │
     ▼
 TerrainMap (gotowa do użycia)
@@ -102,6 +106,34 @@ public enum DistrictType: String, CaseIterable, Codable, Sendable {
     case park          // minimalna ilość dróg
 }
 ```
+
+## TerrainGenerator
+
+Parametryczny generator terenów — tworzy `TerrainMap` bez pliku ASC:
+
+```swift
+public enum TerrainGenerator {
+    static func flat(cols:rows:height:cellsize:) -> TerrainMap    // jednolita wysokość
+    static func slope(cols:rows:fromHeight:toHeight:direction:) -> TerrainMap  // gradient liniowy
+    static func hilly(cols:rows:baseHeight:amplitude:frequency:) -> TerrainMap // fale sinusoidalne
+}
+```
+
+Każda metoda oblicza slope (Horn's method) i urbanizationFactor per węzeł.
+
+### DistrictLayout
+
+Maluje dzielnice na istniejącej mapie:
+
+```swift
+public enum DistrictLayout {
+    static func paintAll(on:district:)           // cała mapa jednym typem
+    static func paintRect(on:district:origin:size:) // prostokątny region
+    static func paintGrid(on:districts:)          // siatka NxN z różnymi typami
+}
+```
+
+Zastosowanie: testy jednostkowe, Simple Demo View, mockowanie scenariuszy.
 
 ## Zależności
 

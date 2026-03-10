@@ -38,8 +38,8 @@ External: swift-collections (Heap<T>)
 
 | Pakiet | Ścieżka | Rola | Zależności |
 |--------|---------|------|-----------|
-| **Terrain** | `Packages/Terrain/` | Ładowanie terenu (ASC), obliczanie nachylenia, zarządzanie dzielnicami, serializacja | — |
-| **RoadGeneration** | `Packages/RoadGeneration/` | Generowanie dróg (priority queue + system reguł), eksport (JSON, OBJ, glTF), GenerationReport | Terrain, Shared, swift-collections |
+| **Terrain** | `Packages/Terrain/` | Ładowanie terenu (ASC), obliczanie nachylenia, zarządzanie dzielnicami, serializacja, parametryczny generator terenów (flat/slope/hilly) | — |
+| **RoadGeneration** | `Packages/RoadGeneration/` | Generowanie dróg (priority queue + system reguł), eksport (JSON, OBJ, glTF), GenerationReport. Struktura: `Core/Models/` (typy danych), `Core/Rules/` (protokoły + implementacje reguł), `Core/Evaluation/` (generatory + ewaluatory), `Core/RoadGenerator.swift` (algorytm) | Terrain, Shared, swift-collections |
 | **Core** | `Packages/Core/` | Fundament — typy podstawowe | — |
 | **Shared** | `Packages/Shared/` | Współdzielone utilities: CWLogger (file + os.Logger) | — |
 
