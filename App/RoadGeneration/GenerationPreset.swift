@@ -35,7 +35,7 @@ enum GenerationPreset: String, CaseIterable, Identifiable {
             break // defaults are fine
         case .largeCity:
             config.minimumRoadDistance = 12.0
-            config.intersectionMinSpacing = 60.0
+            config.intersectionMinSpacing = 40.0
         }
         return config
     }

@@ -48,7 +48,8 @@ struct AngleConstraintRule: LocalConstraintRule {
                 let angleDiff = abs(qa.angle - segment.attributes.angle)
                 let normalizedAngle = min(angleDiff, 2 * .pi - angleDiff)
 
-                if normalizedAngle < minAngle || normalizedAngle > maxAngle {
+                let epsilon = 2 * Double.pi / 180  // 2° floating-point tolerance
+                if normalizedAngle < (minAngle - epsilon) || normalizedAngle > (maxAngle + epsilon) {
                     return ConstraintResult(
                         state: .failed, adjustedQuery: qa, reason: "Invalid intersection angle")
                 }

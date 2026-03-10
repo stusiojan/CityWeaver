@@ -35,7 +35,8 @@ struct DistrictPatternRule: GlobalGoalRule {
                 continue
             }
 
-            let newAngle = ra.angle + angleOffset
+            let jitter = Double.random(in: -config.angleJitter...config.angleJitter)
+            let newAngle = ra.angle + angleOffset + jitter
             let newLength = max(ra.length * lengthMultiplier, config.minimumRoadDistance)
 
             let newRoadAttributes = RoadAttributes(

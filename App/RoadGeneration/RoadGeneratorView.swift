@@ -77,10 +77,16 @@ struct RoadGeneratorView: View {
                         description: Text("Load terrain data and click 'Generate Roads' to begin")
                     )
                 } else {
-                    Canvas { context, size in
-                        drawRoads(context: context, size: size)
+                    ZStack(alignment: .bottomLeading) {
+                        Canvas { context, size in
+                            drawDistricts(context: context, size: size)
+                            drawRoads(context: context, size: size)
+                        }
+                        .background(Color(.controlBackgroundColor))
+
+                        districtLegend
+                            .padding(8)
                     }
-                    .background(Color(.controlBackgroundColor))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -584,6 +590,81 @@ struct RoadGeneratorView: View {
                         logger.error("Failed to export OBJ: \(error)")
                     }
                 }
+            }
+        }
+    }
+
+    private var districtLegend: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Districts")
+                .font(.caption)
+                .bold()
+            ForEach(DistrictType.allCases, id: \.self) { district in
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(districtColor(for: district))
+                        .frame(width: 10, height: 10)
+                    Text(district.displayName)
+                        .font(.caption2)
+                }
+            }
+        }
+        .padding(8)
+        .background(.regularMaterial, in: .rect(cornerRadius: 6))
+    }
+
+    private func districtColor(for district: DistrictType) -> Color {
+        switch district {
+        case .business: .blue
+        case .oldTown: .orange
+        case .residential: .green
+        case .industrial: .gray
+        case .park: Color(red: 0.2, green: 0.6, blue: 0.2)
+        }
+    }
+
+    private func drawDistricts(context: GraphicsContext, size: CGSize) {
+        guard let terrain = terrainMap else { return }
+
+        let dims = terrain.dimensions
+        guard dims.rows > 0, dims.cols > 0 else { return }
+
+        // Use the same coordinate system as drawRoads
+        let allPoints = generatedRoads.flatMap { segment -> [CGPoint] in
+            let start = segment.attributes.startPoint
+            let end = CGPoint(
+                x: start.x + cos(segment.attributes.angle) * segment.attributes.length,
+                y: start.y + sin(segment.attributes.angle) * segment.attributes.length
+            )
+            return [start, end]
+        }
+
+        guard let minX = allPoints.map({ $0.x }).min(),
+              let maxX = allPoints.map({ $0.x }).max(),
+              let minY = allPoints.map({ $0.y }).min(),
+              let maxY = allPoints.map({ $0.y }).max() else { return }
+
+        let dataWidth = maxX - minX
+        let dataHeight = maxY - minY
+        let scale = min(size.width / dataWidth, size.height / dataHeight) * 0.9
+        let offsetX = (size.width - dataWidth * scale) / 2 - minX * scale
+        let offsetY = (size.height - dataHeight * scale) / 2 - minY * scale
+
+        let cellW = scale  // terrain grid cells are 1×1 in coordinate space
+        let cellH = scale
+
+        for row in 0..<dims.rows {
+            for col in 0..<dims.cols {
+                guard let node = terrain.getNode(at: col, y: row),
+                      let district = node.district else { continue }
+
+                let rect = CGRect(
+                    x: Double(col) * scale + offsetX,
+                    y: Double(row) * scale + offsetY,
+                    width: cellW,
+                    height: cellH
+                )
+                context.fill(Path(rect), with: .color(districtColor(for: district).opacity(0.3)))
             }
         }
     }

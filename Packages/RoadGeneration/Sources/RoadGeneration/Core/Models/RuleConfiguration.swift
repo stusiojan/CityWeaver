@@ -9,14 +9,18 @@ public struct RuleConfiguration {
         origin: CGPoint(x: 0, y: 0), size: CGSize(width: 1000, height: 1000))
 
     // Angle constraints (in radians)
-    public var mainRoadAngleMin: Double = 60 * .pi / 180
+    /// Maximum random angle perturbation applied to branch proposals (radians).
+    /// Set to 0 to disable jitter (deterministic). Recommended: 5–15° for organic patterns.
+    public var angleJitter: Double = 0
+
+    public var mainRoadAngleMin: Double = 45 * .pi / 180
     public var mainRoadAngleMax: Double = 170 * .pi / 180
     public var internalRoadAngleMin: Double = 30 * .pi / 180
     public var internalRoadAngleMax: Double = 180 * .pi / 180
 
     // Distance constraints
     public var minimumRoadDistance: Double = 10.0
-    public var intersectionMinSpacing: Double = 50.0
+    public var intersectionMinSpacing: Double = 30.0
 
     // Terrain constraints
     public var maxBuildableSlope: Double = 0.3
@@ -42,7 +46,7 @@ public struct RuleConfiguration {
     public var branchingAngles: [Terrain.DistrictType: [Double]] = [
         .business: [0, .pi / 2, -.pi / 2],  // Grid pattern
         .oldTown: [0, .pi / 6, -.pi / 6, .pi / 4, -.pi / 4],  // Organic
-        .residential: [0, .pi / 3, -.pi / 3],
+        .residential: [0, .pi / 2, -.pi / 2],
         .industrial: [0, .pi / 2, -.pi / 2],
         .park: [0, .pi / 4, -.pi / 4],
     ]
