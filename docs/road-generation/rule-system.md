@@ -55,9 +55,9 @@ enum RuleScope {
 |--------|----------|-------|---------|
 | **BoundaryConstraintRule** | 10 | citywide | Sprawdza czy droga mieści się w `cityBounds` (start i koniec) |
 | **TerrainConstraintRule** | 15 | citywide | Sprawdza nachylenie < `maxBuildableSlope` i urbanizację > `minUrbanizationFactor` |
-| **AngleConstraintRule** | 20 | segmentSpecific | Wymusza kąty skrzyżowań — inne progi dla dróg głównych (60-170°) i wewnętrznych (30-180°). Kontynuacje (start nowej drogi ≈ endpoint istniejącej, dystans < 1.0) pomijane |
+| **AngleConstraintRule** | 20 | segmentSpecific | Wymusza kąty skrzyżowań — inne progi dla dróg głównych (60-170°) i wewnętrznych (30-180°). Pomija siblings (wspólny origin, dystans < 1.0). Sprawdza minimalną odległość segment-do-segmentu (`minimumRoadDistance`) zamiast odległości endpointów |
 | **ProximityConstraintRule** | 25 | citywide | Zapobiega zbyt bliskim drogom — sprawdza odległość endpoints > `minimumRoadDistance` |
-| **DistrictBoundaryRule** | 30 | segmentSpecific | Blokuje drogi wewnętrzne na granicach dzielnic; drogi główne mogą przechodzić |
+| **DistrictBoundaryRule** | 30 | segmentSpecific | Odrzuca drogi kończące się w obszarach bez zdefiniowanej dzielnicy. Blokuje drogi wewnętrzne na granicach dzielnic; drogi główne mogą przechodzić |
 
 ### Kolejność ewaluacji
 
@@ -83,7 +83,8 @@ Najważniejsza reguła — generuje drogi dopasowane do typu dzielnicy:
    - Oblicza nowy punkt startowy (koniec bieżącej drogi)
    - Tworzy `RoadProposal` z dopasowaną długością (× mnożnik)
 3. Długość nowej drogi: `max(length × mnożnik, minimumRoadDistance)` — floor zapobiega degeneracji do zerowej długości
-4. Drogi kontynuujące (kąt 0) dostają `defaultDelay`, rozgałęzienia `branchDelay`
+4. Tylko kontynuacja (index 0) dziedziczy `isMainRoad` z rodzica — rozgałęzienia zawsze `isMainRoad = false`
+5. Drogi kontynuujące (kąt 0) dostają `defaultDelay`, rozgałęzienia `branchDelay`
 
 ## Generatory reguł
 

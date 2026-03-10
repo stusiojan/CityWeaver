@@ -128,7 +128,7 @@ Centralna konfiguracja z ~15 parametrami pogrupowanymi w kategorie:
 |-----------|-----------|----------|
 | Granice | `cityBounds` | 1000×1000 od (0,0) |
 | Kąty | `mainRoadAngle{Min,Max}`, `internalRoadAngle{Min,Max}` | 60-170° / 30-180° |
-| Odległości | `minimumRoadDistance`, `intersectionMinSpacing` | 10m / 50m |
+| Odległości | `minimumRoadDistance`, `intersectionMinSpacing` | 10m / 30m |
 | Teren | `maxBuildableSlope`, `minUrbanizationFactor` | 0.3 / 0.2 |
 | Cele | `branchingProbability`, `roadLengthMultiplier`, `branchingAngles` | per dzielnica |
 | Czas | `defaultDelay`, `branchDelay` | 1 / 3 |
