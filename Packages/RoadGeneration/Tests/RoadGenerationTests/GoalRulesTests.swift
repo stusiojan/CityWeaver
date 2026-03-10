@@ -111,15 +111,21 @@ final class GoalRulesTests: XCTestCase {
             queryAttributes: queryAttrs
         )
         
-        let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
-        
-        XCTAssertFalse(proposals.isEmpty, "Residential district should generate proposals")
-        
+        // Run multiple times to handle randomness in branching probability
+        var allProposals: [RoadProposal] = []
+        for _ in 0..<10 {
+            let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
+            allProposals.append(contentsOf: proposals)
+            if !proposals.isEmpty { break }
+        }
+
+        XCTAssertFalse(allProposals.isEmpty, "Residential district should generate proposals (10 attempts)")
+
         // Check that road length is adjusted by multiplier
-        for proposal in proposals {
+        for proposal in allProposals {
             let lengthRatio = proposal.roadAttributes.length / roadAttrs.length
             let residentialMultiplier = config.roadLengthMultiplier[.residential] ?? 0.8
-            XCTAssertEqual(lengthRatio, residentialMultiplier, accuracy: 0.01, 
+            XCTAssertEqual(lengthRatio, residentialMultiplier, accuracy: 0.01,
                           "Road length should be adjusted by district multiplier")
         }
     }

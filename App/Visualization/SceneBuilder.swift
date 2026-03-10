@@ -110,8 +110,9 @@ struct SceneBuilder {
         material.diffuse.contents = NSColor(red: 0.6, green: 0.5, blue: 0.4, alpha: 1.0)
         material.specular.contents = NSColor(white: 0.1, alpha: 1.0)
         material.shininess = 0.1
+        material.isDoubleSided = true
         geometry.materials = [material]
-        
+
         let terrainNode = SCNNode(geometry: geometry)
         terrainNode.name = "Terrain"
         
@@ -202,8 +203,9 @@ struct SceneBuilder {
         }
         material.specular.contents = NSColor(white: 0.2, alpha: 1.0)
         material.shininess = 0.3
+        material.isDoubleSided = true
         geometry.materials = [material]
-        
+
         return SCNNode(geometry: geometry)
     }
     
@@ -237,24 +239,33 @@ struct SceneBuilder {
     
     /// Setup scene lighting
     func setupLighting(in scene: SCNScene) {
-        // Ambient light
+        // Ambient light — bright enough to see geometry without directional light
         let ambientLight = SCNLight()
         ambientLight.type = .ambient
-        ambientLight.color = NSColor(white: 0.4, alpha: 1.0)
+        ambientLight.color = NSColor(white: 0.7, alpha: 1.0)
         let ambientNode = SCNNode()
         ambientNode.light = ambientLight
         scene.rootNode.addChildNode(ambientNode)
-        
+
         // Directional light (sun)
         let directionalLight = SCNLight()
         directionalLight.type = .directional
-        directionalLight.color = NSColor(white: 0.8, alpha: 1.0)
+        directionalLight.color = NSColor(white: 0.9, alpha: 1.0)
         directionalLight.castsShadow = true
         directionalLight.shadowMode = .deferred
         let directionalNode = SCNNode()
         directionalNode.light = directionalLight
         directionalNode.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
         scene.rootNode.addChildNode(directionalNode)
+
+        // Fill light from opposite side to reduce dark areas
+        let fillLight = SCNLight()
+        fillLight.type = .directional
+        fillLight.color = NSColor(white: 0.4, alpha: 1.0)
+        let fillNode = SCNNode()
+        fillNode.light = fillLight
+        fillNode.eulerAngles = SCNVector3(-Float.pi / 6, -Float.pi / 4, 0)
+        scene.rootNode.addChildNode(fillNode)
     }
     
     /// Setup camera positioned to view the scene
@@ -312,7 +323,7 @@ struct SceneBuilder {
     /// Get elevation from terrain map
     private func getElevation(x: Double, y: Double, terrainMap: Terrain.TerrainMap?) -> Double {
         guard let terrainMap = terrainMap else { return 0.0 }
-        let node = terrainMap.getNode(at: (x: x, y: y))
+        let node = terrainMap.getNode(at: Int(x), y: Int(y))
         return node?.coordinates.z ?? 0.0
     }
 }

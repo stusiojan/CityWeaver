@@ -16,7 +16,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
-        .package(path: "../Terrain")
+        .package(path: "../Terrain"),
+        .package(path: "../Shared")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -25,7 +26,8 @@ let package = Package(
             name: "RoadGeneration",
             dependencies: [
                 .product(name: "Collections", package: "swift-collections"),
-                .product(name: "Terrain", package: "Terrain")
+                .product(name: "Terrain", package: "Terrain"),
+                .product(name: "Shared", package: "Shared")
             ]),
         .testTarget(
             name: "RoadGenerationTests",

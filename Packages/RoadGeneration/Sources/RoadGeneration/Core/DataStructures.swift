@@ -1,6 +1,7 @@
 import Collections
 import CoreGraphics
 import Foundation
+import Shared
 import Terrain
 
 // MARK: - Core Data Structures
@@ -159,6 +160,86 @@ public struct RoadSegment: Codable, Sendable {
         self.id = UUID()
         self.attributes = attributes
         self.createdAt = createdAt
+    }
+}
+
+// MARK: - Generation Report
+
+/// Diagnostic report returned alongside generated road segments
+public struct GenerationReport: Sendable {
+    /// Total number of proposals evaluated by constraint rules
+    public let totalProposalsEvaluated: Int
+    /// Number of proposals that passed all constraints
+    public let totalAccepted: Int
+    /// Number of proposals rejected by constraints
+    public let totalFailed: Int
+    /// Breakdown of failures by constraint rule name
+    public let failuresByConstraint: [String: Int]
+    /// Wall-clock time for the generation pass
+    public let processingTimeSeconds: TimeInterval
+    /// Human-readable summary of the generation run
+    public let diagnosticMessage: String
+    /// Actionable suggestions when the result is poor (e.g. 0 roads)
+    public let suggestedFixes: [String]
+
+    /// Builds a report from raw counters collected during generation
+    public static func build(
+        evaluated: Int,
+        accepted: Int,
+        failures: [String: Int],
+        processingTime: TimeInterval
+    ) -> GenerationReport {
+        let failed = evaluated - accepted
+        var suggestions: [String] = []
+
+        if accepted == 0 {
+            suggestions.append("Check that the initial road start point is inside cityBounds")
+        }
+
+        // Analyse dominant failure reason
+        if let (topReason, topCount) = failures.max(by: { $0.value < $1.value }), topCount > 0 {
+            let ratio = Double(topCount) / Double(max(failed, 1))
+            if ratio > 0.4 {
+                switch topReason {
+                case "Outside city bounds":
+                    suggestions.append(
+                        "Most failures are boundary violations — verify cityBounds matches terrain size"
+                    )
+                case "Slope too steep":
+                    suggestions.append(
+                        "Many roads rejected for steep slope — try increasing maxBuildableSlope"
+                    )
+                case "Too close to existing road":
+                    suggestions.append(
+                        "Many proximity failures — try decreasing minimumRoadDistance"
+                    )
+                case "Low urbanization factor":
+                    suggestions.append(
+                        "Low urbanization rejections — try decreasing minUrbanizationFactor"
+                    )
+                default:
+                    break
+                }
+            }
+        }
+
+        let message: String
+        if accepted == 0 {
+            message = "No roads generated. \(evaluated) proposals evaluated, all rejected."
+        } else {
+            let acceptRate = Double(accepted) / Double(max(evaluated, 1)) * 100
+            message = "\(accepted) roads generated from \(evaluated) proposals (accept rate: \(String(format: "%.1f", acceptRate))%). Time: \(String(format: "%.3f", processingTime))s"
+        }
+
+        return GenerationReport(
+            totalProposalsEvaluated: evaluated,
+            totalAccepted: accepted,
+            totalFailed: failed,
+            failuresByConstraint: failures,
+            processingTimeSeconds: processingTime,
+            diagnosticMessage: message,
+            suggestedFixes: suggestions
+        )
     }
 }
 
@@ -402,8 +483,9 @@ struct TerrainConstraintRule: LocalConstraintRule {
 
     @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
     {
-        let worldCoords = (x: Double(qa.startPoint.x), y: Double(qa.startPoint.y))
-        guard let node = context.terrainMap.getNode(at: worldCoords) else {
+        let gridX = Int(qa.startPoint.x)
+        let gridY = Int(qa.startPoint.y)
+        guard let node = context.terrainMap.getNode(at: gridX, y: gridY) else {
             return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "No terrain data")
         }
 
@@ -471,8 +553,7 @@ struct DistrictBoundaryRule: LocalConstraintRule {
 
     @MainActor func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> ConstraintResult
     {
-        let startWorldCoords = (x: Double(qa.startPoint.x), y: Double(qa.startPoint.y))
-        guard let startNode = context.terrainMap.getNode(at: startWorldCoords) else {
+        guard let startNode = context.terrainMap.getNode(at: Int(qa.startPoint.x), y: Int(qa.startPoint.y)) else {
             return ConstraintResult(state: .succeed, adjustedQuery: qa)
         }
 
@@ -481,8 +562,7 @@ struct DistrictBoundaryRule: LocalConstraintRule {
             y: qa.startPoint.y + sin(qa.angle) * qa.length
         )
 
-        let endWorldCoords = (x: Double(endPoint.x), y: Double(endPoint.y))
-        guard let endNode = context.terrainMap.getNode(at: endWorldCoords) else {
+        guard let endNode = context.terrainMap.getNode(at: Int(endPoint.x), y: Int(endPoint.y)) else {
             return ConstraintResult(state: .succeed, adjustedQuery: qa)
         }
 
@@ -511,8 +591,7 @@ struct DistrictPatternRule: GlobalGoalRule {
     func generateProposals(_ qa: QueryAttributes, _ ra: RoadAttributes, context: GenerationContext)
         -> [RoadProposal]
     {
-        let worldCoords = (x: Double(ra.startPoint.x), y: Double(ra.startPoint.y))
-        guard let node = context.terrainMap.getNode(at: worldCoords) else {
+        guard let node = context.terrainMap.getNode(at: Int(ra.startPoint.x), y: Int(ra.startPoint.y)) else {
             return []
         }
 
@@ -573,10 +652,7 @@ struct CoastalGrowthRule: GlobalGoalRule {
 
     func applies(to context: GenerationContext) -> Bool {
         // Check if we're near coastal area (using extension property)
-        let worldCoords = (
-            x: Double(context.currentLocation.x), y: Double(context.currentLocation.y)
-        )
-        guard let node = context.terrainMap.getNode(at: worldCoords) else {
+        guard let node = context.terrainMap.getNode(at: Int(context.currentLocation.x), y: Int(context.currentLocation.y)) else {
             return false
         }
         return node.district?.isCoastal ?? false
@@ -752,9 +828,9 @@ class LocalConstraintEvaluator {
         self.rules = newRules.sorted { $0.priority < $1.priority }
     }
 
-    /// Evaluates all applicable rules
+    /// Evaluates all applicable rules, returning the failure reason when rejected
     func evaluate(_ qa: QueryAttributes, context: GenerationContext) -> (
-        QueryAttributes, ConstraintState
+        QueryAttributes, ConstraintState, String?
     ) {
         var currentQuery = qa
 
@@ -763,14 +839,14 @@ class LocalConstraintEvaluator {
                 let result = rule.evaluate(currentQuery, context: context)
 
                 if result.state == .failed {
-                    return (result.adjustedQuery, .failed)
+                    return (result.adjustedQuery, .failed, result.reason)
                 }
 
                 currentQuery = result.adjustedQuery
             }
         }
 
-        return (currentQuery, .succeed)
+        return (currentQuery, .succeed, nil)
     }
 }
 
@@ -810,6 +886,8 @@ class GlobalGoalEvaluator {
 /// Main road generation algorithm implementation with rule-based system
 @MainActor
 public final class RoadGenerator {
+    private let logger = CWLogger(subsystem: "RoadGeneration")
+
     /// Priority queue of road proposals to be processed
     private var queue: Heap<RoadQuery>
     /// List of successfully placed road segments
@@ -892,10 +970,15 @@ public final class RoadGenerator {
     /// - Parameters:
     ///   - initialRoad: Starting road attributes for the generation process
     ///   - initialQuery: Starting query attributes for validation
-    /// - Returns: Array of generated road segments forming the final network
+    /// - Returns: Tuple of generated road segments and a diagnostic report
     public func generateRoadNetwork(initialRoad: RoadAttributes, initialQuery: QueryAttributes)
-        -> [RoadSegment]
+        -> (segments: [RoadSegment], report: GenerationReport)
     {
+        let startTime = Date()
+        var evaluated = 0
+        var accepted = 0
+        var failures: [String: Int] = [:]
+
         // Initialize priority queue with single entry
         let initialRoadQuery = RoadQuery(
             time: 0,
@@ -904,9 +987,12 @@ public final class RoadGenerator {
         )
         queue.insert(initialRoadQuery)
 
+        logger.info("Generation started — queue seeded at (\(initialRoad.startPoint.x), \(initialRoad.startPoint.y)), angle=\(initialRoad.angle), length=\(initialRoad.length)")
+
         // Process queue until empty
         while !queue.isEmpty {
             let currentQuery = queue.removeMin()
+            evaluated += 1
 
             // Create context for evaluation
             let context = GenerationContext(
@@ -918,16 +1004,20 @@ public final class RoadGenerator {
             )
 
             // Validate the proposed road segment
-            let (adjustedQuery, state) = constraintEvaluator.evaluate(
+            let (adjustedQuery, state, failureReason) = constraintEvaluator.evaluate(
                 currentQuery.queryAttributes, context: context)
 
             if state == .succeed {
+                accepted += 1
+
                 // Create and add successful segment
                 let newSegment = RoadSegment(
                     attributes: currentQuery.roadAttributes,
                     createdAt: currentQuery.time
                 )
                 segments.append(newSegment)
+
+                logger.debug("Accepted segment #\(accepted) at (\(currentQuery.roadAttributes.startPoint.x), \(currentQuery.roadAttributes.startPoint.y))")
 
                 // Generate new road proposals based on global goals
                 let proposals = goalEvaluator.generateProposals(
@@ -945,11 +1035,27 @@ public final class RoadGenerator {
                     )
                     queue.insert(newQuery)
                 }
+            } else {
+                let reason = failureReason ?? "Unknown"
+                failures[reason, default: 0] += 1
+                logger.constraint("Rejected: \(reason) at (\(currentQuery.queryAttributes.startPoint.x), \(currentQuery.queryAttributes.startPoint.y))")
             }
-            // If state == .failed, simply discard the proposal
         }
 
-        return segments
+        let processingTime = Date().timeIntervalSince(startTime)
+        let report = GenerationReport.build(
+            evaluated: evaluated,
+            accepted: accepted,
+            failures: failures,
+            processingTime: processingTime
+        )
+
+        logger.info("Generation finished — \(report.diagnosticMessage)")
+        if !report.suggestedFixes.isEmpty {
+            logger.info("Suggested fixes: \(report.suggestedFixes.joined(separator: "; "))")
+        }
+
+        return (segments, report)
     }
 
     /// Gets the current list of generated segments
@@ -1044,12 +1150,13 @@ public func exampleUsage() -> [RoadSegment] {
 
     // Generate the initial road network
     print("Generating initial city...")
-    let roadNetwork = generator.generateRoadNetwork(
+    let (roadNetwork, report) = generator.generateRoadNetwork(
         initialRoad: initialRoad,
         initialQuery: initialQuery
     )
 
     print("Generated \(roadNetwork.count) road segments")
+    print(report.diagnosticMessage)
 
     // Simulate city growth iteration
     cityState.population = 15000

@@ -76,6 +76,7 @@ schemes:
       environmentVariables:
         APP_ENV: DEBUG
         OS_ACTIVITY_MODE: disable
+        CW_LOG_DIR: $(SRCROOT)/logs
 
   CityWeaver Release:
     build:
@@ -85,16 +86,20 @@ schemes:
       config: Release
       environmentVariables:
         APP_ENV: RELEASE
+        CW_LOG_DIR: $(SRCROOT)/logs
     archive:
       config: Release
 
 # File groups for organization
 fileGroups:
   - README.md
+  - CLAUDE.md
   - project.yml
+  - Makefile
   - .gitignore
-  - makefile
-  - doc/architecture.md
+  - .claude
+  - docs
+  - logs
 
 # Setting groups for reusability
 settingGroups:

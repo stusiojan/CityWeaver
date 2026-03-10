@@ -149,22 +149,27 @@ struct SceneKitView: NSViewRepresentable {
     func makeNSView(context: Context) -> SCNView {
         let scnView = SCNView()
         scnView.scene = scene
-        scnView.backgroundColor = NSColor(red: 0.1, green: 0.1, blue: 0.15, alpha: 1.0)
+        scnView.backgroundColor = NSColor(red: 0.15, green: 0.15, blue: 0.2, alpha: 1.0)
         scnView.allowsCameraControl = true
-        scnView.autoenablesDefaultLighting = false
+        scnView.autoenablesDefaultLighting = true
         scnView.showsStatistics = true
         scnView.antialiasingMode = .multisampling4X
-        
+        scnView.rendersContinuously = true
+
         // Configure camera control
         scnView.defaultCameraController.interactionMode = .orbitTurntable
         scnView.defaultCameraController.minimumVerticalAngle = -90
         scnView.defaultCameraController.maximumVerticalAngle = 90
-        
+
         return scnView
     }
     
     func updateNSView(_ nsView: SCNView, context: Context) {
         nsView.scene = scene
+        // Ensure the custom camera is used as the point of view
+        if let cameraNode = scene.rootNode.childNodes.first(where: { $0.camera != nil }) {
+            nsView.pointOfView = cameraNode
+        }
     }
 }
 

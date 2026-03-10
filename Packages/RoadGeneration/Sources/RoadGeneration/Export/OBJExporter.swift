@@ -249,7 +249,7 @@ public struct OBJExporter: Sendable {
     /// Get elevation from terrain map or return default
     @MainActor private func getElevation(x: Double, y: Double, terrainMap: Terrain.TerrainMap?) -> Double {
         guard let terrainMap = terrainMap else { return 0.0 }
-        let node = terrainMap.getNode(at: (x: x, y: y))
+        let node = terrainMap.getNode(at: Int(x), y: Int(y))
         return node?.coordinates.z ?? 0.0
     }
     

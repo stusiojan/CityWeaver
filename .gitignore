@@ -15,3 +15,6 @@ Data/*.json
 .claude
 CLAUDE.md
 docs/claude-skills/
+
+# Logs (keep directory, ignore contents)
+logs/*.log

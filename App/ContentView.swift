@@ -100,29 +100,32 @@ struct SimpleDemoView: View {
         withAnimation {
             roads = RoadGeneration.exampleUsage()
             
-            // Create a sample terrain map for 3D view
+            // Create a sample terrain map for 3D view (smaller for fast rendering)
+            let terrainSize = 200
             let header = Terrain.ASCHeader(
-                ncols: 1000,
-                nrows: 1000,
+                ncols: terrainSize,
+                nrows: terrainSize,
                 xllcenter: 0,
                 yllcenter: 0,
-                cellsize: 1,
+                cellsize: 5,
                 nodataValue: -9999
             )
-            
+
             var nodes: [[Terrain.TerrainNode]] = []
-            for y in 0..<1000 {
+            for y in 0..<terrainSize {
                 var row: [Terrain.TerrainNode] = []
-                for x in 0..<1000 {
-                    let z = sin(Double(x) * 0.02) * cos(Double(y) * 0.02) * 5
+                for x in 0..<terrainSize {
+                    let worldX = Double(x) * 5
+                    let worldY = Double(y) * 5
+                    let z = sin(worldX * 0.02) * cos(worldY * 0.02) * 5
                     let node = Terrain.TerrainNode(
                         coordinates: Terrain.TerrainNode.Coordinates(
-                            x: Double(x),
-                            y: Double(y),
+                            x: worldX,
+                            y: worldY,
                             z: z
                         ),
-                        slope: Double.random(in: 0...0.5),
-                        urbanizationFactor: Double.random(in: 0.3...1.0),
+                        slope: Double.random(in: 0...0.2),
+                        urbanizationFactor: Double.random(in: 0.5...1.0),
                         district: .residential
                     )
                     row.append(node)

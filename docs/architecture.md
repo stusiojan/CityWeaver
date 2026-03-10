@@ -26,9 +26,10 @@ Proceduralny generator sieci dróg miejskich. Aplikacja macOS w SwiftUI z modula
 └───────┘         └─────┬─────┘        └──────────┘
                         │ depends on        ▲
 ┌───────┐               │                  │
-│Shared │         ┌─────▼─────┐            │
-│       │         │   RGA     ├────────────┘
-└───────┘         └───────────┘
+│Shared │◄──────────────┘                  │
+│(Logger│               └──────────────────┘
+│  etc.)│
+└───────┘
 
 External: swift-collections (Heap<T>)
 ```
@@ -38,10 +39,9 @@ External: swift-collections (Heap<T>)
 | Pakiet | Ścieżka | Rola | Zależności |
 |--------|---------|------|-----------|
 | **Terrain** | `Packages/Terrain/` | Ładowanie terenu (ASC), obliczanie nachylenia, zarządzanie dzielnicami, serializacja | — |
-| **RoadGeneration** | `Packages/RoadGeneration/` | Generowanie dróg (priority queue + system reguł), eksport (JSON, OBJ, glTF) | Terrain, swift-collections |
-| **RGA** | `Packages/RGA/` | Alternatywna implementacja algorytmu generowania dróg | Terrain, swift-collections |
+| **RoadGeneration** | `Packages/RoadGeneration/` | Generowanie dróg (priority queue + system reguł), eksport (JSON, OBJ, glTF), GenerationReport | Terrain, Shared, swift-collections |
 | **Core** | `Packages/Core/` | Fundament — typy podstawowe | — |
-| **Shared** | `Packages/Shared/` | Współdzielone utilities | — |
+| **Shared** | `Packages/Shared/` | Współdzielone utilities: CWLogger (file + os.Logger) | — |
 
 ## Warstwa UI (App/)
 
@@ -50,7 +50,7 @@ Czysta warstwa SwiftUI bez logiki biznesowej. Organizacja by feature:
 | Feature | Pliki | Opis |
 |---------|-------|------|
 | **TerrainEditor** | 8 plików | Edycja terenu — canvas 2D, malowanie dzielnic, undo/redo |
-| **RoadGeneration** | 1 plik | Panel sterowania generowaniem dróg |
+| **RoadGeneration** | 2 pliki | Panel sterowania generowaniem dróg + presety (GenerationPreset) |
 | **Visualization** | 2 pliki | Wizualizacja 3D sieci dróg (SceneKit) |
 | **Configuration** | 2 pliki | Konfiguracja parametrów miasta i reguł |
 
@@ -82,14 +82,28 @@ CityState + TerrainMap
         │    └── ConnectivityRule
         │
         ▼
-  RoadSegment[] ──► Export (JSON / OBJ / glTF)
+  (RoadSegment[], GenerationReport) ──► Export (JSON / OBJ / glTF)
 ```
+
+### GenerationReport
+
+Każde wywołanie `generateRoadNetwork` zwraca diagnostyczny raport z:
+- liczbą ewaluowanych/przyjętych/odrzuconych propozycji
+- rozkładem odrzuceń per reguła (`failuresByConstraint`)
+- sugestiami naprawczymi (`suggestedFixes`) gdy generacja się nie powiedzie
+
+### Logowanie (CWLogger)
+
+Plik: `~/Library/Logs/CityWeaver/session-{timestamp}.log`
+Format: `[2026-03-10 14:23:05.123] [INFO] [RoadGeneration] Message`
+Subsystemy: `RoadGeneration`, `App.RoadGenerator`, `App.SimpleDemoView`
 
 ## Dane wejściowe
 
 - **Terrain**: pliki ASC (ESRI ASCII Grid) z danymi wysokościowymi
 - **Districts**: malowane ręcznie w TerrainEditor, serializowane do JSON
 - **Konfiguracja**: parametry miasta (CityState) i reguły generowania (RuleConfiguration)
+- **Presety**: Quick Test, Small Village, Medium City, Large City
 
 ## Stack technologiczny
 
@@ -99,17 +113,17 @@ CityState + TerrainMap
 - **Build**: xcodegen (`project.yml`) → `.xcodeproj`
 - **LSP**: xcode-build-server (`buildServer.json`)
 - **Formatowanie**: swiftformat
-- **Testy**: XCTest per pakiet (`make test-terrain`, `make test-rga`)
+- **Testy**: XCTest + Swift Testing per pakiet (`make test-terrain`, `make test-road`)
 
 ## Decyzje architektoniczne
 
 - **Modularyzacja w Swift Packages**: izolacja domen, testowalność bez UI, czyste zależności
 - **xcodegen**: `.xcodeproj` generowany z YAML — unika konfliktów merge w pbxproj
-- **Dwa algorytmy (RoadGeneration vs RGA)**: RGA to iteracja/eksperyment algorytmu; oba współistnieją podczas badań
 - **@MainActor na TerrainMap i RoadGenerator**: uproszczenie concurrency — dane terenu i generator modyfikowane tylko z main thread
 - **OptimizedTerrainMapBuilder**: async actor z 4x downsampling dla dużych map — kompromis między dokładnością a wydajnością
+- **CWLogger**: dual-output (os.Logger + plik) z fire-and-forget zapisem do pliku (nie blokuje MainActor)
 
 ---
 
-*Źródło szczegółowej dokumentacji per moduł: `docs/terrain/`, `docs/road-generation/`, `docs/rga/`, `docs/app/`*
+*Źródło szczegółowej dokumentacji per moduł: `docs/terrain/`, `docs/road-generation/`, `docs/app/`*
 *Archiwalna dokumentacja: `docs/legacy/`*

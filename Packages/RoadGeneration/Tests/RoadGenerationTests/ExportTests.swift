@@ -275,9 +275,10 @@ final class ExportTests: XCTestCase {
         // With embedded binary, bin should be nil
         XCTAssertNil(bin, "Binary should be embedded, not separate")
         
-        // GLTF should contain data URI
-        XCTAssertTrue(gltf.contains("data:application/octet-stream;base64,"), 
-                     "Should contain embedded base64 data")
+        // GLTF should contain data URI (JSONSerialization may escape slashes)
+        let containsDataURI = gltf.contains("data:application/octet-stream;base64,")
+            || gltf.contains("data:application\\/octet-stream;base64,")
+        XCTAssertTrue(containsDataURI, "Should contain embedded base64 data")
     }
     
     @MainActor
