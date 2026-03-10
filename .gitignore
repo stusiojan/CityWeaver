@@ -10,3 +10,8 @@ buildServer.json
 # Data
 *.asc
 Data/*.json
+
+# agents
+.claude
+CLAUDE.md
+docs/claude-skills/

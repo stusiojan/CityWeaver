@@ -1,4 +1,8 @@
-Stack:
+# Stack
+
+W tym pliku jest lista technologii, które wykorzystuję w projekcie
+
+## Technologie
 - Swift packages for backend
 - SwiftUI for frontend
 - xcodegen for managing xcodeproj from project.yml file

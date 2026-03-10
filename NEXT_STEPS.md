@@ -1,11 +1,6 @@
-//
-//  NEXT_STEPS.md
-//  CityWeaverMac
-//
-//  Created by Jan Stusio on 25/02/2026.
-//
+# Hand testing
 
-# UI
+## UI
 
 1. Simple Demo View
 - 3D View is black
@@ -19,10 +14,12 @@
                                             
 3. Combined view - maybe different app entry point dependent on debug / prod configuration
 
-# Alghorithm
-- RGA package doesn't build in tests (it used to work)
+## Alghorithm
+- RGA package doesn't build in tests (it used to work i think, but i'm not sure)
 - Return status messages like 'N roads have been generated', 'No roads have been generated. It might be caused by ...'
+- add a file containing a flat map with field and parameter map, so we can be sure that some roads would be generated and make tests.
 
-# Documentation
+## Documentation
 - Write code challanges and solutions to particular problems in polish
 - Why package architecture was chosen (it is slower, but less coupled to xcode development and more flexible)
+
