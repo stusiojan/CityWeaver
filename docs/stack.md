@@ -25,7 +25,7 @@
 make build          # xcodebuild (Debug scheme)
 make run            # uruchom zbudowaną aplikację
 make test-terrain   # testy pakietu Terrain
-make test-rga       # testy pakietu RoadGeneration
+make test-road      # testy pakietu RoadGeneration
 make test-core      # testy pakietu Core
 make generate-xcodeproj  # regeneruj xcodeproj z project.yml
 make lsp-bind       # powiąż LSP z xcodeproj

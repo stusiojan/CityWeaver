@@ -172,6 +172,107 @@ final class GoalRulesTests: XCTestCase {
         XCTAssertLessThan(averageProposals, 3.0, "Should not always generate all branches")
     }
     
+    // MARK: - DistrictPatternRule isMainRoad Tests
+
+    @MainActor
+    func testDistrictPatternRuleBranchesAreNotMainRoad() {
+        var deterministicConfig = config!
+        deterministicConfig.branchingProbability = [
+            .business: 1.0, .residential: 1.0, .oldTown: 1.0, .industrial: 1.0, .park: 1.0,
+        ]
+        let rule = DistrictPatternRule(config: deterministicConfig)
+
+        let roadAttrs = RoadAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "main"
+        )
+        let queryAttrs = QueryAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "main", isMainRoad: true
+        )
+
+        let context = GenerationContext(
+            currentLocation: CGPoint(x: 6, y: 5),
+            terrainMap: terrainMap,
+            cityState: CityState(population: 10000, density: 1000, economicLevel: 0.5, age: 10),
+            existingInfrastructure: [],
+            queryAttributes: queryAttrs
+        )
+
+        let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
+
+        XCTAssertGreaterThan(proposals.count, 1, "Should generate continuation + branches")
+
+        for (index, proposal) in proposals.enumerated() {
+            if index == 0 {
+                XCTAssertTrue(proposal.queryAttributes.isMainRoad,
+                             "Continuation (index 0) should keep isMainRoad = true")
+            } else {
+                XCTAssertFalse(proposal.queryAttributes.isMainRoad,
+                              "Branch (index \(index)) should have isMainRoad = false")
+            }
+        }
+    }
+
+    @MainActor
+    func testDistrictPatternRuleContinuationKeepsMainRoad() {
+        var deterministicConfig = config!
+        deterministicConfig.branchingProbability = [
+            .business: 1.0, .residential: 1.0, .oldTown: 1.0, .industrial: 1.0, .park: 1.0,
+        ]
+        let rule = DistrictPatternRule(config: deterministicConfig)
+
+        let roadAttrs = RoadAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "main"
+        )
+        let queryAttrs = QueryAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "main", isMainRoad: true
+        )
+
+        let context = GenerationContext(
+            currentLocation: CGPoint(x: 6, y: 5),
+            terrainMap: terrainMap,
+            cityState: CityState(population: 10000, density: 1000, economicLevel: 0.5, age: 10),
+            existingInfrastructure: [],
+            queryAttributes: queryAttrs
+        )
+
+        let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
+
+        XCTAssertFalse(proposals.isEmpty)
+        XCTAssertTrue(proposals[0].queryAttributes.isMainRoad,
+                     "First proposal (continuation) should inherit isMainRoad = true")
+    }
+
+    @MainActor
+    func testDistrictPatternRuleNonMainRoadContinuationStaysNonMainRoad() {
+        var deterministicConfig = config!
+        deterministicConfig.branchingProbability = [
+            .business: 1.0, .residential: 1.0, .oldTown: 1.0, .industrial: 1.0, .park: 1.0,
+        ]
+        let rule = DistrictPatternRule(config: deterministicConfig)
+
+        let roadAttrs = RoadAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "street"
+        )
+        let queryAttrs = QueryAttributes(
+            startPoint: CGPoint(x: 6, y: 5), angle: 0, length: 2, roadType: "street", isMainRoad: false
+        )
+
+        let context = GenerationContext(
+            currentLocation: CGPoint(x: 6, y: 5),
+            terrainMap: terrainMap,
+            cityState: CityState(population: 10000, density: 1000, economicLevel: 0.5, age: 10),
+            existingInfrastructure: [],
+            queryAttributes: queryAttrs
+        )
+
+        let proposals = rule.generateProposals(queryAttrs, roadAttrs, context: context)
+
+        for proposal in proposals {
+            XCTAssertFalse(proposal.queryAttributes.isMainRoad,
+                          "All proposals from non-main road parent should have isMainRoad = false")
+        }
+    }
+
     // MARK: - CoastalGrowthRule Tests
     
     @MainActor

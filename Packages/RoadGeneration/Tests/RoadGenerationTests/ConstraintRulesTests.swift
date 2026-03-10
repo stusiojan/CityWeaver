@@ -307,6 +307,78 @@ final class ConstraintRulesTests: XCTestCase {
     // MARK: - DistrictBoundaryRule Tests
     
     @MainActor
+    func testDistrictBoundaryRejectsNilDistrict() {
+        // Create terrain where some nodes have no district
+        var nodes: [[Terrain.TerrainNode]] = []
+        for y in 0..<10 {
+            var row: [Terrain.TerrainNode] = []
+            for x in 0..<10 {
+                let district: Terrain.DistrictType? = x < 5 ? .residential : nil
+                let node = Terrain.TerrainNode(
+                    coordinates: Terrain.TerrainNode.Coordinates(x: Double(x), y: Double(y), z: 0),
+                    slope: 0.1,
+                    urbanizationFactor: 0.8,
+                    district: district
+                )
+                row.append(node)
+            }
+            nodes.append(row)
+        }
+
+        let header = Terrain.ASCHeader(ncols: 10, nrows: 10, xllcenter: 0, yllcenter: 0, cellsize: 1, nodataValue: -9999)
+        let nilDistrictTerrain = Terrain.TerrainMap(header: header, nodes: nodes)
+
+        let rule = DistrictBoundaryRule(config: config)
+
+        // Road starting in residential (x=3), ending in nil-district (x=6)
+        let query = QueryAttributes(
+            startPoint: CGPoint(x: 3, y: 5),
+            angle: 0,
+            length: 3,
+            roadType: "street",
+            isMainRoad: false
+        )
+
+        let context = GenerationContext(
+            currentLocation: CGPoint(x: 3, y: 5),
+            terrainMap: nilDistrictTerrain,
+            cityState: CityState(population: 10000, density: 1000, economicLevel: 0.5, age: 10),
+            existingInfrastructure: [],
+            queryAttributes: query
+        )
+
+        let result = rule.evaluate(query, context: context)
+
+        XCTAssertEqual(result.state, .failed, "Roads ending in nil-district area should be rejected")
+    }
+
+    @MainActor
+    func testDistrictBoundaryAcceptsSameDistrict() {
+        let rule = DistrictBoundaryRule(config: config)
+
+        // Both start and end in .residential (terrainMap has all residential)
+        let query = QueryAttributes(
+            startPoint: CGPoint(x: 3, y: 5),
+            angle: 0,
+            length: 2,
+            roadType: "street",
+            isMainRoad: false
+        )
+
+        let context = GenerationContext(
+            currentLocation: CGPoint(x: 3, y: 5),
+            terrainMap: terrainMap,
+            cityState: CityState(population: 10000, density: 1000, economicLevel: 0.5, age: 10),
+            existingInfrastructure: [],
+            queryAttributes: query
+        )
+
+        let result = rule.evaluate(query, context: context)
+
+        XCTAssertEqual(result.state, .succeed, "Roads within same district should succeed")
+    }
+
+    @MainActor
     func testDistrictBoundarySameDistrict() {
         let rule = DistrictBoundaryRule(config: config)
         

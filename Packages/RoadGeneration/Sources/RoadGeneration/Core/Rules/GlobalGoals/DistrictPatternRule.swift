@@ -51,7 +51,7 @@ struct DistrictPatternRule: GlobalGoalRule {
                 angle: newAngle,
                 length: newLength,
                 roadType: ra.roadType,
-                isMainRoad: qa.isMainRoad
+                isMainRoad: index == 0 ? qa.isMainRoad : false
             )
 
             let delay = index == 0 ? config.defaultDelay : config.branchDelay

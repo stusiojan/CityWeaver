@@ -26,6 +26,11 @@ struct DistrictBoundaryRule: LocalConstraintRule {
             return ConstraintResult(state: .succeed, adjustedQuery: qa)
         }
 
+        // Reject roads that end in areas without a defined district
+        if endNode.district == nil {
+            return ConstraintResult(state: .failed, adjustedQuery: qa, reason: "No district defined")
+        }
+
         // Hard transition - roads cannot cross district boundaries (except main roads)
         if startNode.district != endNode.district && !qa.isMainRoad {
             return ConstraintResult(
